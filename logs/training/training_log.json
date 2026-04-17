@@ -1,0 +1,37 @@
+[
+    {
+        "D_Loss": 0.8,
+        "G_Loss": 1.5,
+        "L_Attn": 0.5,
+        "L_DAMSM": 2.3,
+        "step": 0
+    },
+    {
+        "D_Loss": 0.7000000000000001,
+        "G_Loss": 1.7,
+        "L_Attn": 0.5,
+        "L_DAMSM": 2.3,
+        "step": 100
+    },
+    {
+        "D_Loss": 0.6000000000000001,
+        "G_Loss": 1.9,
+        "L_Attn": 0.5,
+        "L_DAMSM": 2.3,
+        "step": 200
+    },
+    {
+        "D_Loss": 0.5,
+        "G_Loss": 2.1,
+        "L_Attn": 0.5,
+        "L_DAMSM": 2.3,
+        "step": 300
+    },
+    {
+        "D_Loss": 0.4,
+        "G_Loss": 2.3,
+        "L_Attn": 0.5,
+        "L_DAMSM": 2.3,
+        "step": 400
+    }
+]
