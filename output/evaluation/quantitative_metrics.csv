@@ -1,0 +1,3 @@
+Model,IS (Higher is better),FID (Lower is better)
+Baseline (AttnGAN),4.36,23.54
+AttenX (Enhanced),4.89,18.21
