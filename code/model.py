@@ -113,35 +113,27 @@ class D_NET256(nn.Module):
         super(D_NET256, self).__init__()
         self.b_jcu = b_jcu
         self.encode_img = nn.Sequential(
-            spectral_norm(conv4x4(3, ndf)),
+            spectral_norm(nn.Conv2d(3, ndf, 3, 2, 1, bias=False)), # 256 -> 128
             nn.LeakyReLU(0.2, inplace=True),
             
-            spectral_norm(conv4x4(ndf, ndf * 2)),
+            spectral_norm(nn.Conv2d(ndf, ndf * 2, 3, 2, 1, bias=False)), # 128 -> 64
             nn.BatchNorm2d(ndf * 2),
             nn.LeakyReLU(0.2, inplace=True),
             
-            spectral_norm(conv4x4(ndf * 2, ndf * 4)),
+            spectral_norm(nn.Conv2d(ndf * 2, ndf * 4, 3, 2, 1, bias=False)), # 64 -> 32
             nn.BatchNorm2d(ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             
-            spectral_norm(conv4x4(ndf * 4, ndf * 8)),
+            spectral_norm(nn.Conv2d(ndf * 4, ndf * 8, 3, 2, 1, bias=False)), # 32 -> 16
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             
-            spectral_norm(conv4x4(ndf * 8, ndf * 16)),
+            spectral_norm(nn.Conv2d(ndf * 8, ndf * 16, 3, 2, 1, bias=False)), # 16 -> 8
             nn.BatchNorm2d(ndf * 16),
             nn.LeakyReLU(0.2, inplace=True),
             
-            spectral_norm(conv4x4(ndf * 16, ndf * 32)),
+            spectral_norm(nn.Conv2d(ndf * 16, ndf * 32, 3, 2, 1, bias=False)), # 8 -> 4
             nn.BatchNorm2d(ndf * 32),
-            nn.LeakyReLU(0.2, inplace=True),
-            
-            spectral_norm(conv3x3(ndf * 32, ndf * 16)),
-            nn.BatchNorm2d(ndf * 16),
-            nn.LeakyReLU(0.2, inplace=True),
-            
-            spectral_norm(conv3x3(ndf * 16, ndf * 8)),
-            nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True)
         )
 

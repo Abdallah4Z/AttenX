@@ -66,6 +66,10 @@ class CNN_ENCODER(nn.Module):
         self.emb_cnn_code = nn.Linear(2048, self.nef)
 
     def forward(self, x):
+        # Resize for Inception-v3 compatibility
+        if x.shape[-1] != 299:
+            x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=False)
+            
         # Initial layers
         x = self.Conv2d_1a_3x3(x)
         x = self.Conv2d_2a_3x3(x)

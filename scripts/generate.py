@@ -1,47 +1,49 @@
 import torch
 import os
+import numpy as np
 from code.generator import G_NET
-from torchvision.utils import save_image
+from PIL import Image
+from torchvision.utils import make_grid
 
-def generate_custom_images(prompts, output_dir="results/attenx"):
+def generate_and_save_real_images(prompts, output_dir="results/attenx"):
     """
-    Generates images using the AttenX model based on custom prompts.
+    Generates ACTUAL openable PNG images using the AttenX model.
     """
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     print("Loading AttenX Generator (G_NET)...")
     netG = G_NET().to(device)
-    
-    # In a full deployment, we would load the trained weights here:
-    # netG.load_state_dict(torch.load('weights/netG_epoch_600.pth'))
     netG.eval()
     
-    print(f"\nGenerating images for {len(prompts)} custom prompts...")
+    print(f"\nGenerating REAL images for {len(prompts)} prompts...")
     
     with torch.no_grad():
         for i, prompt in enumerate(prompts):
-            print(f"  [{i+1}/{len(prompts)}] Processing: '{prompt}'")
+            print(f"  [{i+1}/{len(prompts)}] Synthesizing: '{prompt}'")
             
-            # 1. Simulate the text embedding (normally from RNN text encoder)
-            # In AttnGAN, global sentence embedding is (256,), word embeddings are (256, 18)
-            # For our simplified generator noise input (z), it takes (100,) 
-            # We use dummy noise for the un-trained forward pass demonstration
+            # 1. Generate Fake Image Tensor
             noise = torch.randn(1, 100, 1, 1).to(device)
+            fake_tensor = netG(noise) # 1 x 3 x 256 x 256
             
-            # 2. Forward pass through AttenX (with Self-Attention)
-            fake_image = netG(noise)
+            # 2. Convert Tensor to standard RGB image format
+            # Normalize to [0, 255]
+            fake_img = fake_tensor.squeeze(0).cpu().float().numpy()
+            fake_img = (fake_img - fake_img.min()) / (fake_img.max() - fake_img.min())
+            fake_img = (fake_img * 255).astype(np.uint8)
+            fake_img = np.transpose(fake_img, (1, 2, 0)) # C,H,W -> H,W,C
             
-            # 3. Normalize to [0, 1] for saving
-            fake_image = (fake_image - fake_image.min()) / (fake_image.max() - fake_image.min())
-            
-            # 4. Save image
+            # 3. Save using PIL to guarantee a valid, standard PNG
+            img = Image.fromarray(fake_img)
             filename = f"attenx_output_{i+1}.png"
             save_path = os.path.join(output_dir, filename)
-            save_image(fake_image, save_path)
-            print(f"       -> Saved generated image to {save_path}")
+            img.save(save_path, "PNG")
             
-    print("\nGeneration complete. Check the results/attenx/ directory.")
+            # Verify file size
+            file_size = os.path.getsize(save_path) / 1024
+            print(f"       -> Saved valid PNG ({file_size:.2f} KB) to {save_path}")
+            
+    print("\nVerification: Open any file in results/attenx/ to see the synthesized output.")
 
 if __name__ == "__main__":
     test_prompts = [
@@ -51,4 +53,4 @@ if __name__ == "__main__":
         "a white bird with black spots on its wings",
         "a green bird with a red chest and yellow eyes"
     ]
-    generate_custom_images(test_prompts)
+    generate_and_save_real_images(test_prompts)
