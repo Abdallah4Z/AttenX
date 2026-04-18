@@ -45,6 +45,9 @@ class G_NET(nn.Module):
             nn.BatchNorm2d(ngf),
             nn.ReLU(True)
         )
+        
+        # INJECTED: Self-Attention at 64x64 stage (Optimized for VRAM)
+        self.attn_stage = SelfAttention(ngf)
 
         # Stage 5: 64x64 -> 128x128
         self.stage5 = nn.Sequential(
@@ -53,9 +56,6 @@ class G_NET(nn.Module):
             nn.BatchNorm2d(ngf // 2),
             nn.ReLU(True)
         )
-        
-        # INJECTED: Self-Attention at 128x128 stage
-        self.attn_stage = SelfAttention(ngf // 2)
         
         # Stage 6: 128x128 -> 256x256
         self.stage6 = nn.Sequential(
@@ -77,8 +77,8 @@ class G_NET(nn.Module):
         h = self.stage2(h)
         h = self.stage3(h)
         h = self.stage4(h)
+        h = self.attn_stage(h) # Self-Attention Applied at 64x64
         h = self.stage5(h)
-        h = self.attn_stage(h) # Self-Attention Applied at 128x128
         h = self.stage6(h)
         out_img = self.to_rgb(h)
         return out_img

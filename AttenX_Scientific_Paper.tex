@@ -47,7 +47,7 @@ Despite its success in rendering fine details (e.g., specific feather colors), a
 \subsection{Our Contributions}
 To resolve these deficiencies, we propose \textbf{AttenX}, an enhanced text-to-image framework. Our specific contributions are:
 \begin{itemize}
-    \item We design and implement a \textbf{Non-Local Self-Attention} module within the multi-stage generator. By injecting this module after the $128 \times 128$ resolution stage, the model can compute a weighted response across all spatial positions, explicitly enforcing global coherence without sacrificing computational efficiency.
+    \item We design and implement a \textbf{Non-Local Self-Attention} module within the multi-stage generator. By injecting this module after the $64 \times 64$ resolution stage, the model can compute a weighted response across all spatial positions, explicitly enforcing global coherence without sacrificing computational efficiency.
     \item We stabilize the adversarial training process by applying \textbf{Spectral Normalization} \cite{miyato2018spectral} to the convolutional layers of the $D_0, D_1$, and $D_2$ discriminators. This bounds the Lipschitz constant mathematically, preventing discriminator over-optimization.
     \item We implement the \textbf{Two Time-Scale Update Rule (TTUR)} \cite{heusel2017gans}, exploiting the stabilized discriminators to accelerate generator convergence and mitigate mode collapse.
 \end{itemize}
@@ -68,7 +68,7 @@ The AttenX architecture retains the $F_0, F_1, F_2$ hierarchical forest structur
 \subsection{Global Coherence via Self-Attention}
 In a standard convolutional layer, the feature value at a specific pixel is solely a function of its immediate spatial neighborhood. To introduce global awareness, we design a Self-Attention module that calculates the response at a position as a weighted sum of the features at all positions.
 
-Given an intermediate feature map $X \in \mathbb{R}^{C \times H \times W}$ from the $128 \times 128$ stage ($F_1$), we flatten the spatial dimensions to $X \in \mathbb{R}^{C \times N}$, where $N = H \times W$. The feature map is linearly projected into three spaces: Query ($Q$), Key ($K$), and Value ($V$):
+Given an intermediate feature map $X \in \mathbb{R}^{C \times H \times W}$ from the $64 \times 64$ stage ($F_1$), we flatten the spatial dimensions to $X \in \mathbb{R}^{C \times N}$, where $N = H \times W$. The feature map is linearly projected into three spaces: Query ($Q$), Key ($K$), and Value ($V$):
 \begin{equation}
 Q = W_q X, \quad K = W_k X, \quad V = W_v X
 \end{equation}
@@ -87,7 +87,7 @@ Y_i = \gamma O_i + X_i
 Initializing $\gamma = 0$ ensures the model initially relies on local convolutions and progressively learns to incorporate non-local global topologies.
 
 \subsection{Discriminator Audit and Spectral Normalization}
-AttnGAN utilizes three discriminators ($D_0$ at $64 \times 64$, $D_1$ at $128 \times 128$, and $D_2$ at $256 \times 256$). To prevent these networks from easily distinguishing generated distributions from real ones early in training, we apply Spectral Normalization.
+AttnGAN utilizes three discriminators ($D_0$ at $64 \times 64$, $D_1$ at $64 \times 64$, and $D_2$ at $256 \times 256$). To prevent these networks from easily distinguishing generated distributions from real ones early in training, we apply Spectral Normalization.
 
 For each convolutional layer weight matrix $W$ in the discriminators, we compute its spectral norm $\sigma(W)$, which is its largest singular value. The weight matrix is then normalized:
 \begin{equation}
