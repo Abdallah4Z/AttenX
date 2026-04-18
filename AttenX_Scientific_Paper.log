@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.31)  18 APR 2026 11:12
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (TeX Live 2022/dev/Debian) (preloaded format=pdflatex 2026.1.31)  18 APR 2026 11:40
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -406,46 +406,80 @@ Package: multirow 2021/03/15 v2.8 Span multiple rows of a table
 \multirow@dima=\skip57
 \bigstrutjot=\dimen190
 )
-(/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
+(/usr/share/texlive/texmf-dist/tex/latex/caption/caption.sty
+Package: caption 2020/10/26 v3.5g Customizing captions (AR)
+
+(/usr/share/texlive/texmf-dist/tex/latex/caption/caption3.sty
+Package: caption3 2020/10/21 v2.2e caption3 kernel (AR)
+\captionmargin=\dimen191
+\captionmargin@=\dimen192
+\captionwidth=\dimen193
+\caption@tempdima=\dimen194
+\caption@indent=\dimen195
+\caption@parindent=\dimen196
+\caption@hangindent=\dimen197
+Package caption Info: Unknown document class (or package),
+(caption)             standard defaults will be used.
+Package caption Info: \@makecaption = \long macro:#1#2->\ifx \@captype \@IEEEta
+blestring \footnotesize \bgroup \par \centering \@IEEEtabletopskipstrut {\norma
+lfont \footnotesize #1}\\{\normalfont \footnotesize \scshape #2}\par \addvspace
+ {0.5\baselineskip }\egroup \@IEEEtablecaptionsepspace \else \@IEEEfigurecaptio
+nsepspace \setbox \@tempboxa \hbox {\normalfont \footnotesize {#1.}\nobreakspac
+e \nobreakspace #2}\ifdim \wd \@tempboxa >\hsize \setbox \@tempboxa \hbox {\nor
+malfont \footnotesize {#1.}\nobreakspace \nobreakspace }\parbox [t]{\hsize }{\n
+ormalfont \footnotesize \noindent \unhbox \@tempboxa #2}\else \ifCLASSOPTIONcon
+ference \hbox to\hsize {\normalfont \footnotesize \hfil \box \@tempboxa \hfil }
+\else \hbox to\hsize {\normalfont \footnotesize \box \@tempboxa \hfil }\fi \fi 
+\fi  on input line 1139.
+)
+
+Package caption Warning: Unknown document class (or package),
+(caption)                standard defaults will be used.
+See the caption package documentation for explanation.
+
+\c@caption@flags=\count297
+\c@continuedfloat=\count298
+Package caption Info: hyperref package is loaded.
+) (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2022-01-12 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count297
+\l__color_backend_stack_int=\count299
 \l__pdf_internal_box=\box54
 )
 (./AttenX_Scientific_Paper.aux)
 \openout1 = `AttenX_Scientific_Paper.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 16.
+LaTeX Font Info:    ... okay on input line 16.
 
 -- Lines per column: 56 (exact).
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count298
-\scratchdimen=\dimen191
+\scratchcounter=\count300
+\scratchdimen=\dimen198
 \scratchbox=\box55
-\nofMPsegments=\count299
-\nofMParguments=\count300
+\nofMPsegments=\count301
+\nofMParguments=\count302
 \everyMPshowfont=\toks23
-\MPscratchCnt=\count301
-\MPscratchDim=\dimen192
-\MPnumerator=\count302
-\makeMPintoPDFobject=\count303
+\MPscratchCnt=\count303
+\MPscratchDim=\dimen199
+\MPnumerator=\count304
+\makeMPintoPDFobject=\count305
 \everyMPtoPDFconversion=\toks24
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
@@ -456,7 +490,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring OFF on input line 15.
+Package hyperref Info: Link coloring OFF on input line 16.
 
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2021-04-02 v2.47 Cross-referencing by name of section
@@ -467,73 +501,68 @@ Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
 (/usr/share/texlive/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty
 Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
 )
-\c@section@level=\count304
+\c@section@level=\count306
 )
-LaTeX Info: Redefining \ref on input line 15.
-LaTeX Info: Redefining \pageref on input line 15.
-LaTeX Info: Redefining \nameref on input line 15.
+LaTeX Info: Redefining \ref on input line 16.
+LaTeX Info: Redefining \pageref on input line 16.
+LaTeX Info: Redefining \nameref on input line 16.
 
 (./AttenX_Scientific_Paper.out) (./AttenX_Scientific_Paper.out)
 \@outlinefile=\write3
 \openout3 = `AttenX_Scientific_Paper.out'.
 
+Package caption Info: Begin \AtBeginDocument code.
+Package caption Info: End \AtBeginDocument code.
 
-Underfull \hbox (badness 4048) in paragraph at lines 27--29
+Underfull \hbox (badness 4048) in paragraph at lines 28--30
 []\OT1/ptm/b/it/9 Abstract\OT1/ptm/b/n/9 ---Synthesizing high-fidelity, pho-to-
 re-al-is-tic im-ages
  []
 
 
-Underfull \hbox (badness 2452) in paragraph at lines 31--33
+Underfull \hbox (badness 2452) in paragraph at lines 32--34
 []\OT1/ptm/b/it/9 Index Terms\OT1/ptm/b/n/9 ---Generative Ad-ver-sar-ial Net-wo
 rks, Text-to-
  []
 
-LaTeX Font Info:    Trying to load font information for U+msa on input line 36.
+
+Underfull \hbox (badness 2671) in paragraph at lines 39--40
+[]\OT1/ptm/m/n/10 The At-ten-tional Gen-er-a-tive Ad-ver-sar-ial Net-work (At-
+ []
+
+
+Underfull \hbox (badness 2376) in paragraph at lines 39--40
+\OT1/ptm/m/n/10 tnGAN) [[]1[]] rev-o-lu-tion-ized the field by in-tro-duc-ing a
+n
+ []
+
+LaTeX Font Info:    Trying to load font information for U+msa on input line 45.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 36.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 45.
 
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-Underfull \hbox (badness 2671) in paragraph at lines 38--39
-[]\OT1/ptm/m/n/10 The At-ten-tional Gen-er-a-tive Ad-ver-sar-ial Net-work (At-
- []
-
-
-Underfull \hbox (badness 2376) in paragraph at lines 38--39
-\OT1/ptm/m/n/10 tnGAN) [[]1[]] rev-o-lu-tion-ized the field by in-tro-duc-ing a
-n
- []
-
-
-Underfull \hbox (badness 1748) in paragraph at lines 52--53
-[]\OT1/ptm/m/n/10 We im-ple-ment the \OT1/ptm/b/n/10 Two Time-Scale Up-date Rul
-e
- []
-
-[1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
+<results/baseline/baseline_sample_1.png, id=44, 256.96pt x 256.96pt>
+File: results/baseline/baseline_sample_1.png Graphic file (type png)
+<use results/baseline/baseline_sample_1.png>
+Package pdftex.def Info: results/baseline/baseline_sample_1.png  used on input 
+line 83.
+(pdftex.def)             Requested size: 100.79846pt x 100.7982pt.
+<results/attenx/attenx_output_1.png, id=45, 256.96pt x 256.96pt>
+File: results/attenx/attenx_output_1.png Graphic file (type png)
+<use results/attenx/attenx_output_1.png>
+Package pdftex.def Info: results/attenx/attenx_output_1.png  used on input line
+ 84.
+(pdftex.def)             Requested size: 100.79846pt x 100.7982pt.
+ [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
 
 ]
-
-LaTeX Warning: Citation `goodfellow2014generative' on page 2 undefined on input
- line 57.
-
-[2]
-Underfull \hbox (badness 2922) in paragraph at lines 129--130
-[]\OT1/ptm/m/n/10 Visual in-spec-tion of sam-ples gen-er-ated from un-seen
- []
-
-
-Underfull \hbox (badness 3826) in paragraph at lines 146--147
-[]\OT1/ptm/m/n/8 T. Miy-ato, T. Kataoka, M. Koyama, and Y. Yoshida, ``Spec-
- []
-
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -545,41 +574,37 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the appropriate paper size.
 
-[3] (./AttenX_Scientific_Paper.aux)
+[2
 
-LaTeX Warning: There were undefined references.
-
+ <./results/baseline/baseline_sample_1.png (PNG copy)> <./results/attenx/attenx
+_output_1.png (PNG copy)>] (./AttenX_Scientific_Paper.aux)
 Package rerunfilecheck Info: File `AttenX_Scientific_Paper.out' has not changed
 .
-(rerunfilecheck)             Checksum: 35A70EC1BA5B139538844BBB26D89A79;2900.
+(rerunfilecheck)             Checksum: 2C8AA27B4F237087F8E67CCE25999103;1443.
  ) 
 Here is how much of TeX's memory you used:
- 11114 strings out of 478287
- 174452 string characters out of 5849289
- 484672 words of memory out of 5000000
- 29126 multiletter control sequences out of 15000+600000
- 508499 words of font info for 101 fonts, out of 8000000 for 9000
+ 12329 strings out of 478287
+ 198902 string characters out of 5849289
+ 509611 words of memory out of 5000000
+ 30349 multiletter control sequences out of 15000+600000
+ 505668 words of font info for 98 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 60i,9n,63p,1594b,415s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 60i,12n,63p,1594b,336s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/share/texliv
 e/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
-ublic/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/a
-msfonts/cm/cmr5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
-cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy1
-0.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb><
-/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/sh
-are/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/share/texlive/texm
-f-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/texlive/texmf-dist/fonts/t
-ype1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/
-utmri8a.pfb>
-Output written on AttenX_Scientific_Paper.pdf (3 pages, 179579 bytes).
+/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/type1/p
+ublic/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmb8a.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/share/tex
+live/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/urw/times/utmri8a.pfb>
+Output written on AttenX_Scientific_Paper.pdf (2 pages, 419149 bytes).
 PDF statistics:
- 209 PDF objects out of 1000 (max. 8388607)
- 172 compressed objects within 2 object streams
- 36 named destinations out of 1000 (max. 500000)
- 137 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 127 PDF objects out of 1000 (max. 8388607)
+ 98 compressed objects within 1 object stream
+ 19 named destinations out of 1000 (max. 500000)
+ 83 words of extra memory for PDF output out of 10000 (max. 10000000)
 

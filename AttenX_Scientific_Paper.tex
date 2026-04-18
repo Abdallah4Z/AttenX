@@ -8,6 +8,7 @@
 \usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{caption}
 
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -33,83 +34,31 @@ Generative Adversarial Networks, Text-to-Image Synthesis, Self-Attention, Spectr
 \end{IEEEkeywords}
 
 \section{Introduction}
-The task of text-to-image synthesis requires a model to bridge the semantic gap between natural language descriptions and visual pixel space. Generating an image that is not only photorealistic but also semantically aligned with the text prompt is incredibly challenging. Early approaches, such as GAN-INT-CLS \cite{reed2016generative}, successfully demonstrated the viability of conditional Generative Adversarial Networks (cGANs) for this task but were limited to low-resolution outputs ($64 \times 64$). Subsequent innovations like StackGAN \cite{zhang2017stackgan} and StackGAN++ \cite{zhang2018stackgan++} introduced multi-stage refinement processes to generate higher resolution images ($256 \times 256$), yet they lacked fine-grained control over localized visual attributes.
+The task of text-to-image synthesis requires a model to bridge the semantic gap between natural language descriptions and visual pixel space. Generating an image that is not only photorealistic but also semantically aligned with the text prompt is incredibly challenging. Early approaches, such as GAN-INT-CLS successfully demonstrated the viability of conditional Generative Adversarial Networks (cGANs) for this task but were limited to low-resolution outputs.
 
 The Attentional Generative Adversarial Network (AttnGAN) \cite{xu2018attngan} revolutionized the field by introducing an attention-driven, multi-stage architecture. By leveraging a Deep Attentional Multimodal Similarity Model (DAMSM), AttnGAN computes a fine-grained word-context vector, allowing the generator to synthesize specific sub-regions of the image based on individual words in the prompt. 
 
 \subsection{Drawbacks of the Baseline Model}
-Despite its success in rendering fine details (e.g., specific feather colors), an extensive architectural analysis of AttnGAN reveals two critical drawbacks:
-\begin{enumerate}
-    \item \textbf{Lack of Global Structural Coherence:} AttnGAN's convolutional layers are restricted by their local receptive fields. While word-level attention successfully dictates local texture, it fails to capture long-range spatial dependencies. This limitation frequently results in severe morphological and anatomical errors, such as birds generated with multiple disjointed beaks or abnormally proportioned limbs. The model struggles to understand that the placement of a "head" must logically restrict the placement of a "tail" across the image space.
-    \item \textbf{Training Instability and Mode Collapse:} The multi-stage nature of AttnGAN requires training multiple generators and discriminators simultaneously. Discriminators operating on high-resolution outputs often converge too quickly, producing vanishing gradients for the generator. This imbalance leads to mode collapse, where the generator outputs a limited variety of images regardless of the input noise vector.
-\end{enumerate}
-
-\subsection{Our Contributions}
-To resolve these deficiencies, we propose \textbf{AttenX}, an enhanced text-to-image framework. Our specific contributions are:
-\begin{itemize}
-    \item We design and implement a \textbf{Non-Local Self-Attention} module within the multi-stage generator. By injecting this module after the $64 \times 64$ resolution stage, the model can compute a weighted response across all spatial positions, explicitly enforcing global coherence without sacrificing computational efficiency.
-    \item We stabilize the adversarial training process by applying \textbf{Spectral Normalization} \cite{miyato2018spectral} to the convolutional layers of the $D_0, D_1$, and $D_2$ discriminators. This bounds the Lipschitz constant mathematically, preventing discriminator over-optimization.
-    \item We implement the \textbf{Two Time-Scale Update Rule (TTUR)} \cite{heusel2017gans}, exploiting the stabilized discriminators to accelerate generator convergence and mitigate mode collapse.
-\end{itemize}
-
-\section{Related Work}
-\subsection{Text-to-Image Synthesis}
-Following the advent of GANs \cite{goodfellow2014generative}, Reed et al. \cite{reed2016generative} proposed GAN-INT-CLS to map text embeddings to visual representations. StackGAN \cite{zhang2017stackgan} broke the resolution barrier by using a tree-like structure of generators. AttnGAN \cite{xu2018attngan} built upon this by introducing the DAMSM to align text and image at the sub-word level. More recently, architectures like DF-GAN and DM-GAN have attempted to simplify the multi-stage process, but structural incoherence remains a persistent issue in convolution-only architectures.
-
-\subsection{Attention Mechanisms in Vision}
-Self-Attention has been highly successful in natural language processing (e.g., Transformers). Zhang et al. \cite{zhang2019self} introduced the Self-Attention Generative Adversarial Network (SAGAN), demonstrating that attention mechanisms can be adapted to convolutional GANs to model long-range dependencies in image generation tasks. 
-
-\subsection{Adversarial Stabilization}
-GAN training is notoriously unstable. Wasserstein GANs with Gradient Penalty (WGAN-GP) offered a solution but at a high computational cost. Miyato et al. \cite{miyato2018spectral} proposed Spectral Normalization (SN), a highly efficient weight normalization technique that enforces Lipschitz continuity on the discriminator. Heusel et al. \cite{heusel2017gans} introduced TTUR, proving that updating the discriminator at a faster learning rate than the generator guarantees convergence to a local Nash equilibrium.
+Despite its success in rendering fine details, AttnGAN reveals two critical drawbacks: (1) Lack of Global Structural Coherence due to local receptive fields, and (2) Training Instability leading to mode collapse.
 
 \section{Proposed Methodology: AttenX}
-The AttenX architecture retains the $F_0, F_1, F_2$ hierarchical forest structure of AttnGAN but fundamentally alters the intermediate feature processing and discriminator topologies.
+The AttenX architecture retains the $F_0$ to $F_2$ hierarchical structure of AttnGAN but injects a Non-Local Self-Attention block.
 
 \subsection{Global Coherence via Self-Attention}
-In a standard convolutional layer, the feature value at a specific pixel is solely a function of its immediate spatial neighborhood. To introduce global awareness, we design a Self-Attention module that calculates the response at a position as a weighted sum of the features at all positions.
-
-Given an intermediate feature map $X \in \mathbb{R}^{C \times H \times W}$ from the $64 \times 64$ stage ($F_1$), we flatten the spatial dimensions to $X \in \mathbb{R}^{C \times N}$, where $N = H \times W$. The feature map is linearly projected into three spaces: Query ($Q$), Key ($K$), and Value ($V$):
-\begin{equation}
-Q = W_q X, \quad K = W_k X, \quad V = W_v X
-\end{equation}
-where $W_q, W_k \in \mathbb{R}^{\frac{C}{8} \times C}$ are weight matrices that reduce the channel dimensionality for computational efficiency, and $W_v \in \mathbb{R}^{C \times C}$.
-
-The spatial attention map $A \in \mathbb{R}^{N \times N}$ is computed using the scaled dot-product between the Query and Key spaces, followed by a softmax normalization:
+We design a Self-Attention module that calculates the response at a position as a weighted sum of the features at all positions. Given an intermediate feature map $X$, we project it into Query ($Q$), Key ($K$), and Value ($V$) spaces. The spatial attention map $A$ is computed via:
 \begin{equation}
 A_{j, i} = \frac{\exp(Q_i^T K_j)}{\sum_{i=1}^N \exp(Q_i^T K_j)}
 \end{equation}
-Here, $A_{j, i}$ dictates the extent to which the model attends to the $i^{th}$ location when synthesizing the $j^{th}$ location. The output of the attention layer $O$ is the matrix multiplication of the attention map and the Value space: $O = V A^T$.
 
-Finally, the output is multiplied by a learnable scale parameter $\gamma$ and added back to the original input feature map $X$ as a residual connection:
-\begin{equation}
-Y_i = \gamma O_i + X_i
-\end{equation}
-Initializing $\gamma = 0$ ensures the model initially relies on local convolutions and progressively learns to incorporate non-local global topologies.
-
-\subsection{Discriminator Audit and Spectral Normalization}
-AttnGAN utilizes three discriminators ($D_0$ at $64 \times 64$, $D_1$ at $64 \times 64$, and $D_2$ at $256 \times 256$). To prevent these networks from easily distinguishing generated distributions from real ones early in training, we apply Spectral Normalization.
-
-For each convolutional layer weight matrix $W$ in the discriminators, we compute its spectral norm $\sigma(W)$, which is its largest singular value. The weight matrix is then normalized:
-\begin{equation}
-\bar{W}_{SN} = \frac{W}{\sigma(W)}
-\end{equation}
-By replacing $W$ with $\bar{W}_{SN}$, we mathematically bound the Lipschitz constant of the discriminator to $1$. This ensures that the derivative of the discriminator with respect to its input remains bounded, mitigating the vanishing gradient problem and preventing mode collapse.
-
-\subsection{Optimization with TTUR}
-Leveraging the stability provided by Spectral Normalization, we implement the Two Time-Scale Update Rule (TTUR). We set the learning rate for all three discriminators to $\eta_D = 4 \times 10^{-4}$ and the generator to $\eta_G = 1 \times 10^{-4}$. This ensures the discriminators quickly adapt to shifts in the generator's output distribution, providing consistent and reliable gradients.
+The attention module is strategically placed at the $64 \times 64$ resolution stage to maximize global dependency capture while maintaining VRAM efficiency for 256x256 high-resolution synthesis.
 
 \section{Experiments and Results}
 
-\subsection{Experimental Setup}
-The model was implemented using PyTorch and evaluated on the Caltech-UCSD Birds-200-2011 (CUB) dataset, which contains 11,788 images of birds belonging to 200 species, each annotated with 10 textual descriptions. The base generator takes a 100-dimensional noise vector $z \sim \mathcal{N}(0, 1)$ and text embeddings derived from a pre-trained bi-directional LSTM. 
-
 \subsection{Quantitative Evaluation}
-We quantitatively evaluated the synthesized images using two standard metrics: Inception Score (IS) and Fréchet Inception Distance (FID). IS measures the diversity and clarity of the generated images, while FID measures the distribution distance between the generated and real images.
-
-As detailed in Table \ref{tab:metrics}, AttenX significantly outperforms the baseline. The integration of Self-Attention drastically improved the anatomical realism, leading to a higher IS. Concurrently, Spectral Normalization reduced mode collapse, yielding a diverse set of images that tightly match the true data distribution, resulting in a significantly lower FID.
+Table \ref{tab:metrics} demonstrates that AttenX significantly outperforms AttnGAN in distribution alignment and clarity.
 
 \begin{table}[htbp]
-\caption{Quantitative Performance Comparison on CUB Dataset}
+\caption{Quantitative Performance Comparison}
 \begin{center}
 \begin{tabular}{@{}lcc@{}}
 \toprule
@@ -126,37 +75,27 @@ AttnGAN (Baseline) \cite{xu2018attngan} & 4.36 & 23.54 \\
 \end{table}
 
 \subsection{Qualitative Analysis}
-Visual inspection of samples generated from unseen prompts confirms the superiority of AttenX. When processing complex prompts such as "\textit{a bright yellow bird with a black head and wings}," the baseline AttnGAN frequently generates "Frankenstein" artifacts—such as a yellow body with two disconnected black heads or multiple stray wings scattered in the background.
+As shown in Fig. \ref{fig:comparison}, the baseline AttnGAN frequently generates anatomically disjointed features. In contrast, AttenX utilizes the Self-Attention context to ensure that global structure remains coherent across the 256x256 canvas.
 
-AttenX, empowered by the Self-Attention module, successfully enforces spatial logic. The attention maps confirm that when the model synthesizes the "tail" region, it actively attends to the coordinates of the "head" and "body," ensuring proper proportional alignment and completely eliminating disjointed anatomical structures.
+\begin{figure}[htbp]
+\centering
+\begin{tabular}{cc}
+\includegraphics[width=0.4\columnwidth]{results/baseline/baseline_sample_1.png} & 
+\includegraphics[width=0.4\columnwidth]{results/attenx/attenx_output_1.png} \\
+(a) Baseline AttnGAN & (b) AttenX (Ours)
+\end{tabular}
+\caption{Qualitative comparison on the prompt: \textit{``a bright yellow bird with a black head and wings''}. Note how AttenX (b) resolves the fragmented anatomy present in the baseline (a).}
+\label{fig:comparison}
+\end{figure}
 
 \section{Conclusion}
-In this paper, we identified critical flaws in the state-of-the-art AttnGAN architecture, namely a lack of global structural coherence and susceptibility to discriminator-induced mode collapse. We proposed AttenX, which successfully addresses these drawbacks by embedding Non-Local Self-Attention mechanisms into the multi-stage generative forest and applying Spectral Normalization paired with TTUR across the discriminators. Both our quantitative metrics and qualitative observations confirm that AttenX generates images that are vastly superior in morphological accuracy, photorealism, and distributional diversity. Future research will explore replacing the RNN text-encoder with Transformer-based architectures like CLIP to further enhance the semantic bridging between text and image modalities.
+We proposed AttenX, which addresses AttnGAN's lack of global coherence and training instability. By integrating Self-Attention and Spectral Normalization, we generated images with superior morphological accuracy and photorealism. Future work will explore Transformer-based encoders.
 
 \section*{References}
 \begin{thebibliography}{00}
-
-\bibitem{xu2018attngan}
-T.~Xu, P.~Zhang, Q.~Huang, H.~Zhang, Z.~Gan, X.~Huang, and X.~He, ``AttnGAN: Fine-Grained Text to Image Generation with Attentional Generative Adversarial Networks,'' \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, pp. 1316--1324, 2018. DOI: \href{https://doi.org/10.1109/CVPR.2018.00143}{10.1109/CVPR.2018.00143}.
-
-\bibitem{zhang2019self}
-H.~Zhang, I.~Goodfellow, D.~Metaxas, and A.~Odena, ``Self-Attention Generative Adversarial Networks,'' \emph{Proceedings of the 36th International Conference on Machine Learning (ICML)}, vol. 97, pp. 7354--7363, 2019. DOI: \href{https://doi.org/10.48550/arXiv.1805.08318}{10.48550/arXiv.1805.08318}.
-
-\bibitem{miyato2018spectral}
-T.~Miyato, T.~Kataoka, M.~Koyama, and Y.~Yoshida, ``Spectral Normalization for Generative Adversarial Networks,'' \emph{International Conference on Learning Representations (ICLR)}, 2018. DOI: \href{https://doi.org/10.48550/arXiv.1802.05957}{10.48550/arXiv.1802.05957}.
-
-\bibitem{heusel2017gans}
-M.~Heusel, H.~Ramsauer, T.~Unterthiner, B.~Nessler, and S.~Hochreiter, ``GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium,'' \emph{Advances in Neural Information Processing Systems (NIPS)}, vol. 30, 2017. DOI: \href{https://doi.org/10.48550/arXiv.1706.08500}{10.48550/arXiv.1706.08500}.
-
-\bibitem{reed2016generative}
-S.~Reed, Z.~Akata, X.~Yan, L.~Logeswaran, B.~Schiele, and H.~Lee, ``Generative Adversarial Text to Image Synthesis,'' \emph{Proceedings of the 33rd International Conference on Machine Learning (ICML)}, vol. 48, pp. 1060--1069, 2016. DOI: \href{https://doi.org/10.48550/arXiv.1605.05396}{10.48550/arXiv.1605.05396}.
-
-\bibitem{zhang2017stackgan}
-H.~Zhang, T.~Xu, H.~Li, S.~Zhang, X.~Wang, X.~Huang, and D.~N. Metaxas, ``StackGAN: Text to Photo-Realistic Image Synthesis with Stacked Generative Adversarial Networks,'' \emph{Proceedings of the IEEE International Conference on Computer Vision (ICCV)}, pp. 5907--5915, 2017. DOI: \href{https://doi.org/10.1109/ICCV.2017.629}{10.1109/ICCV.2017.629}.
-
-\bibitem{zhang2018stackgan++}
-H.~Zhang, T.~Xu, H.~Li, S.~Zhang, X.~Wang, X.~Huang, and D.~N. Metaxas, ``StackGAN++: Realistic Image Synthesis with Stacked Generative Adversarial Networks,'' \emph{IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)}, vol. 41, no. 8, pp. 1947--1962, 2018. DOI: \href{https://doi.org/10.1109/TPAMI.2018.2856256}{10.1109/TPAMI.2018.2856256}.
-
+\bibitem{xu2018attngan} T.~Xu et al., ``AttnGAN: Fine-Grained Text to Image Generation with Attentional Generative Adversarial Networks,'' \emph{Proc. CVPR}, 2018.
+\bibitem{zhang2019self} H.~Zhang et al., ``Self-Attention Generative Adversarial Networks,'' \emph{Proc. ICML}, 2019.
+\bibitem{miyato2018spectral} T.~Miyato et al., ``Spectral Normalization for GANs,'' \emph{Proc. ICLR}, 2018.
 \end{thebibliography}
 
 \end{document}
