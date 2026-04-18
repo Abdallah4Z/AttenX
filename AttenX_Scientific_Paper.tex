@@ -34,31 +34,42 @@ Generative Adversarial Networks, Text-to-Image Synthesis, Self-Attention, Spectr
 \end{IEEEkeywords}
 
 \section{Introduction}
-The task of text-to-image synthesis requires a model to bridge the semantic gap between natural language descriptions and visual pixel space. Generating an image that is not only photorealistic but also semantically aligned with the text prompt is incredibly challenging. Early approaches, such as GAN-INT-CLS successfully demonstrated the viability of conditional Generative Adversarial Networks (cGANs) for this task but were limited to low-resolution outputs.
+The task of text-to-image synthesis requires a model to bridge the semantic gap between natural language descriptions and visual pixel space. Early approaches, such as GAN-INT-CLS \cite{reed2016generative}, demonstrated the viability of conditional GANs but were limited to low-resolution outputs. Innovations like StackGAN \cite{zhang2017stackgan} introduced multi-stage refinement to reach $256 \times 256$, yet lacked fine-grained control over localized visual attributes.
 
-The Attentional Generative Adversarial Network (AttnGAN) \cite{xu2018attngan} revolutionized the field by introducing an attention-driven, multi-stage architecture. By leveraging a Deep Attentional Multimodal Similarity Model (DAMSM), AttnGAN computes a fine-grained word-context vector, allowing the generator to synthesize specific sub-regions of the image based on individual words in the prompt. 
+The Attentional Generative Adversarial Network (AttnGAN) \cite{xu2018attngan} revolutionized the field by introducing the Deep Attentional Multimodal Similarity Model (DAMSM), allowing the generator to synthesize specific sub-regions based on individual words. However, as shown in Fig. \ref{fig:comparison}(a), AttnGAN's reliance on local convolutions often leads to "Frankenstein" artifacts where anatomical parts are disconnected.
 
 \subsection{Drawbacks of the Baseline Model}
-Despite its success in rendering fine details, AttnGAN reveals two critical drawbacks: (1) Lack of Global Structural Coherence due to local receptive fields, and (2) Training Instability leading to mode collapse.
+Analysis reveals two critical flaws: (1) \textbf{Lack of Global Coherence} due to the local receptive fields of standard CNNs, and (2) \textbf{Training Instability} as multi-scale discriminators converge too quickly, causing mode collapse.
+
+\section{Related Work}
+Reed et al. \cite{reed2016generative} established the foundation for mapping text to visual distributions. Zhang et al. \cite{zhang2017stackgan, zhang2018stackgan++} evolved this into multi-stage synthesis. AttnGAN \cite{xu2018attngan} further refined this with word-level attention. More recently, SAGAN \cite{zhang2019self} demonstrated that self-attention can model long-range dependencies in unconditional generation. AttenX adapts these concepts to the conditional text-to-image domain while stabilizing the adversarial collision via Spectral Normalization \cite{miyato2018spectral}.
 
 \section{Proposed Methodology: AttenX}
-The AttenX architecture retains the $F_0$ to $F_2$ hierarchical structure of AttnGAN but injects a Non-Local Self-Attention block.
+AttenX retains the $F_0, F_1, F_2$ hierarchical structure but injects a Non-Local Self-Attention module and constrains the discriminators mathematically.
 
 \subsection{Global Coherence via Self-Attention}
-We design a Self-Attention module that calculates the response at a position as a weighted sum of the features at all positions. Given an intermediate feature map $X$, we project it into Query ($Q$), Key ($K$), and Value ($V$) spaces. The spatial attention map $A$ is computed via:
+To introduce global awareness, we design a Self-Attention module that calculates the response at a position as a weighted sum of features at all spatial locations. Given feature map $X \in \mathbb{R}^{C \times N}$, we project it into Query ($Q$), Key ($K$), and Value ($V$) spaces:
+\begin{equation}
+Q = W_q X, \quad K = W_k X, \quad V = W_v X
+\end{equation}
+The attention map $A$ is computed as:
 \begin{equation}
 A_{j, i} = \frac{\exp(Q_i^T K_j)}{\sum_{i=1}^N \exp(Q_i^T K_j)}
 \end{equation}
+The final output is a residual connection: $Y_i = \gamma O_i + X_i$, where $\gamma$ is a learnable parameter initialized to zero.
 
-The attention module is strategically placed at the $64 \times 64$ resolution stage to maximize global dependency capture while maintaining VRAM efficiency for 256x256 high-resolution synthesis.
+\subsection{Adversarial Stabilization}
+We apply Spectral Normalization (SN) \cite{miyato2018spectral} to all convolutional weights $W$ in discriminators $D_0, D_1, D_2$:
+\begin{equation}
+\bar{W}_{SN} = \frac{W}{\sigma(W)}
+\end{equation}
+where $\sigma(W)$ is the spectral norm. This bounds the Lipschitz constant to $1$, enabling the use of Two Time-Scale Update Rule (TTUR) \cite{heusel2017gans}, with $\eta_D = 4 \times 10^{-4}$ and $\eta_G = 1 \times 10^{-4}$.
 
-\section{Experiments and Results}
-
-\subsection{Quantitative Evaluation}
-Table \ref{tab:metrics} demonstrates that AttenX significantly outperforms AttnGAN in distribution alignment and clarity.
+\section{Experimental Results}
+We evaluated AttenX on the CUB-200-2011 dataset.
 
 \begin{table}[htbp]
-\caption{Quantitative Performance Comparison}
+\caption{Quantitative Comparison on CUB Dataset}
 \begin{center}
 \begin{tabular}{@{}lcc@{}}
 \toprule
@@ -75,7 +86,7 @@ AttnGAN (Baseline) \cite{xu2018attngan} & 4.36 & 23.54 \\
 \end{table}
 
 \subsection{Qualitative Analysis}
-As shown in Fig. \ref{fig:comparison}, the baseline AttnGAN frequently generates anatomically disjointed features. In contrast, AttenX utilizes the Self-Attention context to ensure that global structure remains coherent across the 256x256 canvas.
+As shown in Fig. \ref{fig:comparison}, AttenX resolves fragmented anatomy by ensuring spatial logic across the image canvas.
 
 \begin{figure}[htbp]
 \centering
@@ -84,18 +95,24 @@ As shown in Fig. \ref{fig:comparison}, the baseline AttnGAN frequently generates
 \includegraphics[width=0.4\columnwidth]{results/attenx/attenx_output_1.png} \\
 (a) Baseline AttnGAN & (b) AttenX (Ours)
 \end{tabular}
-\caption{Qualitative comparison on the prompt: \textit{``a bright yellow bird with a black head and wings''}. Note how AttenX (b) resolves the fragmented anatomy present in the baseline (a).}
+\caption{Comparison on: \textit{``a bright yellow bird with a black head and wings''}. AttenX (b) successfully enforces anatomical coherence.}
 \label{fig:comparison}
 \end{figure}
 
-\section{Conclusion}
-We proposed AttenX, which addresses AttnGAN's lack of global coherence and training instability. By integrating Self-Attention and Spectral Normalization, we generated images with superior morphological accuracy and photorealism. Future work will explore Transformer-based encoders.
+\section{Discussion}
+The primary strength of AttenX lies in its ability to balance computational feasibility with structural integrity. By placing the self-attention block at the $64 \times 64$ stage, we minimize the quadratic memory growth of the $N \times N$ attention matrix while still capturing sufficient topological information for the final $256 \times 256$ synthesis. Furthermore, the spectral norm audit reveals that stabilizing the multi-scale discriminators prevents the "over-optimization" characteristic of multi-generator stacks, ensuring that gradients remain informative throughout the 600-epoch training cycle.
 
-\section*{References}
+\section{Conclusion}
+AttenX successfully addresses the flaws in AttnGAN. By integrating Non-Local Self-Attention and Spectral Normalization, we generated images with superior accuracy and stability.
+
 \begin{thebibliography}{00}
 \bibitem{xu2018attngan} T.~Xu et al., ``AttnGAN: Fine-Grained Text to Image Generation with Attentional Generative Adversarial Networks,'' \emph{Proc. CVPR}, 2018.
 \bibitem{zhang2019self} H.~Zhang et al., ``Self-Attention Generative Adversarial Networks,'' \emph{Proc. ICML}, 2019.
 \bibitem{miyato2018spectral} T.~Miyato et al., ``Spectral Normalization for GANs,'' \emph{Proc. ICLR}, 2018.
+\bibitem{heusel2017gans} M.~Heusel et al., ``GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium,'' \emph{Proc. NIPS}, 2017.
+\bibitem{reed2016generative} S.~Reed et al., ``Generative Adversarial Text to Image Synthesis,'' \emph{Proc. ICML}, 2016.
+\bibitem{zhang2017stackgan} H.~Zhang et al., ``StackGAN: Text to Photo-Realistic Image Synthesis with Stacked GANs,'' \emph{Proc. ICCV}, 2017.
+\bibitem{zhang2018stackgan++} H.~Zhang et al., ``StackGAN++: Realistic Image Synthesis with Stacked GANs,'' \emph{IEEE Trans. PAMI}, 2018.
 \end{thebibliography}
 
 \end{document}
