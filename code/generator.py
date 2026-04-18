@@ -32,13 +32,20 @@ class G_NET(nn.Module):
             nn.BatchNorm2d(ngf * 2),
             nn.ReLU(True)
         )
+        
+        # Final image output
+        self.to_rgb = nn.Sequential(
+            nn.Conv2d(ngf * 2, 3, 3, 1, 1, bias=False),
+            nn.Tanh()
+        )
 
     def forward(self, z):
         h0 = self.stage0(z)
         h1 = self.stage1(h0)
         h1_attn = self.attn_stage1(h1) # Self-Attention Applied
         h2 = self.stage2(h1_attn)
-        return h2
+        out_img = self.to_rgb(h2)
+        return out_img
 
 if __name__ == "__main__":
     # Test initialization and forward pass
