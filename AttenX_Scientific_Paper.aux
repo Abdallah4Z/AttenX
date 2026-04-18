@@ -18,46 +18,20 @@
 \providecommand\HyField@AuxAddToCoFields[2]{}
 \citation{reed2016generative}
 \citation{zhang2017stackgan}
-\citation{zhang2018stackgan++}
 \citation{xu2018attngan}
-\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {I-A}}Problem Statement and Motivation}{1}{subsection.1.1}\protected@file@percent }
-\citation{goodfellow2014generative}
 \citation{mirza2014conditional}
 \citation{zhang2017stackgan}
-\citation{zhang2018stackgan++}
 \citation{xu2018attngan}
-\citation{wang2018non}
 \citation{zhang2019self}
 \citation{miyato2018spectral}
+\citation{miyato2018spectral}
 \citation{heusel2017gans}
-\citation{heusel2017gans}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {I-B}}Contributions}{2}{subsection.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{section.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Generative Adversarial Networks}{2}{subsection.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Multi-Stage Refinement}{2}{subsection.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Attention Mechanisms in Computer Vision}{2}{subsection.2.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}GAN Stabilization Techniques}{2}{subsection.2.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {III}Proposed Methodology: AttenX}{2}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Multimodal Pipeline and Encoders}{2}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Generative Forest with Self-Attention}{2}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Spectral Normalization and TTUR Optimization}{2}{subsection.3.3}\protected@file@percent }
-\citation{xu2018attngan}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Proposed Methodology: AttenX}{1}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Self-Attention and Global Spatial Logic}{1}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Lipschitz-Constrained Discriminators}{1}{subsection.3.2}\protected@file@percent }
 \bibcite{reed2016generative}{1}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Loss Function Suite}{3}{subsection.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {IV}Experimental Framework}{3}{section.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Dataset: CUB-200-2011}{3}{subsection.4.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Evaluation Metrics}{3}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {V}Results and Analysis}{3}{section.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Quantitative Performance}{3}{subsection.5.1}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Quantitative Performance on CUB Dataset\relax }}{3}{table.caption.1}\protected@file@percent }
-\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{tab:metrics}{{I}{3}{Quantitative Performance on CUB Dataset\relax }{table.caption.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Qualitative Analysis and Global Coherence}{3}{subsection.5.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Qualitative comparison showing AttenX's ability to resolve the fragmented anatomy common in baseline AttnGAN results.\relax }}{3}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:comparison}{{1}{3}{Qualitative comparison showing AttenX's ability to resolve the fragmented anatomy common in baseline AttnGAN results.\relax }{figure.caption.2}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {VI}Discussion}{3}{section.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {VII}Conclusion}{3}{section.7}\protected@file@percent }
 \bibcite{mirza2014conditional}{2}
 \bibcite{zhang2017stackgan}{3}
 \bibcite{zhang2018stackgan++}{4}
@@ -65,7 +39,16 @@
 \bibcite{zhang2019self}{6}
 \bibcite{miyato2018spectral}{7}
 \bibcite{heusel2017gans}{8}
-\bibcite{goodfellow2014generative}{9}
-\bibcite{wang2018non}{10}
-\@writefile{toc}{\contentsline {section}{References}{4}{section*.3}\protected@file@percent }
-\gdef \@abspage@last{4}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Ablation Study}{2}{section.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Systematic Ablation Study Results\relax }}{2}{table.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:ablation}{{I}{2}{Systematic Ablation Study Results\relax }{table.caption.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Experimental Results}{2}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Quantitative Analysis}{2}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Qualitative Visual Analysis}{2}{subsection.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Qualitative comparison showing AttenX's ability to resolve the fragmented anatomy common in baseline AttnGAN results.\relax }}{2}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:comparison}{{1}{2}{Qualitative comparison showing AttenX's ability to resolve the fragmented anatomy common in baseline AttnGAN results.\relax }{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Discussion}{2}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Conclusion}{2}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{2}{section*.3}\protected@file@percent }
+\gdef \@abspage@last{2}
