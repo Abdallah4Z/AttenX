@@ -10,10 +10,11 @@ All three discriminators share a similar downsampling structure but operate on d
 ### $D_1$ ($128 \times 128$)
 - Layers: Similar to $D_0$ but with an additional initial downsampling block.
 - Feature Maps: Up to 1024.
+- **Note:** Only $D_{NET256}$ is currently implemented (single discriminator).
 
 ### $D_2$ ($256 \times 256$)
 - Layers: Most complex, handling the highest resolution.
-- Feature Maps: Up to 2048.
+- Feature Maps: Up to 1024.
 
 ## 2. Spectral Normalization Targets
 To stabilize the training of the GAN and prevent the Discriminator from becoming too "powerful" (leading to mode collapse), we will wrap all `nn.Conv2d` layers in the discriminator classes.
@@ -23,5 +24,6 @@ To stabilize the training of the GAN and prevent the Discriminator from becoming
 - **Application:** Wrap all Conv layers except the final output layer (though some research suggests wrapping that too).
 
 ## 3. Learning Rate Recommendations
-- **Baseline LR:** $0.0002$ (Adam optimizer).
-- **Adjustment:** With Spectral Normalization, we can safely increase the LR for the Discriminator to $0.0004$ (Two-Time Scale Update Rule - TTUR) to accelerate convergence.
+- **Generator LR:** $0.0001$ (Adam optimizer).
+- **Discriminator LR:** $0.0004$ (Two-Time Scale Update Rule - TTUR).
+- **Betas:** (0.5, 0.999) for stable GAN training.

@@ -29,5 +29,5 @@ Finally, the residual connection with a learnable scale $\gamma$ is applied:
 $$ Y = \gamma \cdot O + X $$
 
 ## 4. Complexity Analysis
-- **Memory:** The attention matrix $A$ has size $N \times N$. For $256 \times 256$ images ($N=65536$), this would require ~16GB of memory, which is why we place it after the $128 \times 128$ stage ($N=16384$).
+- **Memory:** The attention matrix $A$ has size $N \times N$. For $256 \times 256$ images ($N=65536$), this would require ~16GB of memory, which is why we place it after the $64 \times 64$ stage ($N=4096$).
 - **FLOPs:** $O(N^2 \cdot C)$.

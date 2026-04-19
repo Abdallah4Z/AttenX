@@ -1,28 +1,53 @@
 # Issue #2: Multi-Stage Generator Architecture Analysis
 
 ## 1. Feature Flow Mapping
-The AttenX generator follows a hierarchical forest structure ($F_0, F_1, F_2$) where each stage refines the image resolution and adds local details.
+The AttenX generator follows a 7-stage hierarchical upsampling structure (Stage 0-6) producing 256x256 images from a 100-dimensional noise vector.
 
-### Stage 0: $F_0$ (Initial Image)
-- **Input:** Noise vector $z$ and global sentence embedding.
-- **Output:** $64 \times 64$ hidden feature map.
-- **Focus:** Global structure, coarse shapes, and primary color distributions.
+### Stage 0 ($F_0$): Initial Feature Map
+- **Input:** Noise vector $z$ (100 dim).
+- **Output:** $4 \times 4$ feature map, 1024 channels.
+- **Layer:** `ConvTranspose2d(100, ngf*16, 4, 1, 0)` → BatchNorm → ReLU.
 
-### Stage 1: $F_1$ (Refinement 1)
-- **Input:** $F_0$ output + word-level attention features.
-- **Upsampling:** $64 \times 64 \rightarrow 128 \times 128$.
-- **Mechanism:** Usually involves `nn.Upsample` followed by $3 \times 3$ convolutions to reduce checkerboard artifacts.
+### Stage 1 ($F_1$): 4x4 → 8x8
+- **Input:** Stage 0 output.
+- **Output:** $8 \times 8$, 512 channels.
+- **Layer:** `nn.Upsample(scale_factor=2, mode='nearest')` → Conv3x3.
 
-### Stage 2: $F_2$ (Refinement 2)
-- **Input:** $F_1$ output + word-level attention features.
-- **Upsampling:** $128 \times 128 \rightarrow 256 \times 256$.
-- **Focus:** Fine textures, sharp edges, and detailed object features (e.g., bird feathers, eye highlights).
+### Stage 2 ($F_2$): 8x8 → 16x16
+- **Input:** Stage 1 output.
+- **Output:** $16 \times 16$, 256 channels.
+- **Focus:** Coarse structure emergence.
+
+### Stage 3 ($F_3$): 16x16 → 32x32
+- **Input:** Stage 2 output.
+- **Output:** $32 \times 32$, 128 channels.
+- **Focus:** Shape refinement.
+
+### Stage 4 ($F_4$): 32x32 → 64x64
+- **Input:** Stage 3 output.
+- **Output:** $64 \times 64$, 64 channels.
+- **Self-Attention:** Applied here for global coherence.
+
+### Stage 5 ($F_5$): 64x64 → 128x128
+- **Input:** Attention output.
+- **Output:** $128 \times 128$, 32 channels.
+- **Focus:** Detail introduction.
+
+### Stage 6 ($F_6$): 128x128 → 256x256
+- **Input:** Stage 5 output.
+- **Output:** $256 \times 256$, 16 channels.
+- **Focus:** Fine textures, sharp edges, and detailed object features.
+
+### Final Output
+- **Layer:** Conv3x3(16, 3) → Tanh.
+- **Output:** $256 \times 256$ RGB image.
 
 ## 2. Global vs. Local Transition
-- **Global Structure:** Primarily determined in $F_0$ and the early layers of $F_1$.
-- **Local Detail:** Dominates the $F_2$ stage.
-- **Observation:** If the attention mechanism in $F_1$ is weak, the $F_2$ stage often produces "hallucinated" details that don't align with the text, leading to anatomical inconsistencies.
+- **Global Structure:** Primarily determined in Stages 0-3.
+- **Local Detail:** Dominates Stages 4-6 with self-attention at 64x64.
+- **Observation:** If the self-attention mechanism at Stage 4 is weak, the later stages often produce "hallucinated" details that don't align with the text.
 
 ## 3. Upsampling vs. Deconvolution
-- **Original AttnGAN:** Uses `nn.Upsample(scale_factor=2, mode='nearest')` followed by a convolution.
-- **Analysis:** Nearest-neighbor upsampling is computationally efficient and avoids the checkerboard artifacts common with `ConvTranspose2d` (Deconvolution), provided the subsequent convolution is properly trained.
+- **AttenX:** Uses `nn.Upsample(scale_factor=2, mode='nearest')` followed by convolution (Stages 1-6).
+- **Stage 0:** Uses `ConvTranspose2d` for initial 4x4 projection.
+- **Analysis:** Nearest-neighbor upsampling is computationally efficient and avoids the checkerboard artifacts common with `ConvTranspose2d`.
