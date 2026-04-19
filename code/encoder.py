@@ -1,8 +1,7 @@
-import torch
 import torch.nn as nn
-import torch.nn.parallel
 from torchvision import models
 import torch.nn.functional as F
+
 
 class RNN_ENCODER(nn.Module):
     def __init__(self, n_words, nhidden=256, nembed=256, nlayers=1):
@@ -19,20 +18,23 @@ class RNN_ENCODER(nn.Module):
         # captions: (batch_size, seq_len)
         embeddings = self.word_embeddings(captions)
         embeddings = self.dropout(embeddings)
-        
+
         # Pack padded sequence
-        packed = nn.utils.rnn.pack_padded_sequence(embeddings, cap_lens, batch_first=True, enforce_sorted=False)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            embeddings, cap_lens, batch_first=True, enforce_sorted=False
+        )
         output, hidden = self.rnn(packed, hidden)
-        
+
         # Unpack
         output, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
         # output: (batch_size, seq_len, nhidden * 2)
-        
+
         # global sentence embedding
         sent_emb = hidden[0].transpose(0, 1).contiguous()
         sent_emb = sent_emb.view(-1, self.nhidden * 2)
-        
+
         return output, sent_emb
+
 
 class CNN_ENCODER(nn.Module):
     def __init__(self, nef):
@@ -41,7 +43,7 @@ class CNN_ENCODER(nn.Module):
         model = models.inception_v3(pretrained=True)
         for param in model.parameters():
             param.requires_grad = False
-            
+
         self.define_module(model)
 
     def define_module(self, model):
@@ -61,15 +63,15 @@ class CNN_ENCODER(nn.Module):
         self.Mixed_7a = model.Mixed_7a
         self.Mixed_7b = model.Mixed_7b
         self.Mixed_7c = model.Mixed_7c
-        
+
         self.emb_features = nn.Conv2d(768, self.nef, kernel_size=1, stride=1, padding=0, bias=False)
         self.emb_cnn_code = nn.Linear(2048, self.nef)
 
     def forward(self, x):
         # Resize for Inception-v3 compatibility
         if x.shape[-1] != 299:
-            x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=False)
-            
+            x = F.interpolate(x, size=(299, 299), mode="bilinear", align_corners=False)
+
         # Initial layers
         x = self.Conv2d_1a_3x3(x)
         x = self.Conv2d_2a_3x3(x)
@@ -86,10 +88,10 @@ class CNN_ENCODER(nn.Module):
         x = self.Mixed_6c(x)
         x = self.Mixed_6d(x)
         x = self.Mixed_6e(x)
-        
+
         # Local features (from Mixed_6e)
         features = self.emb_features(x)
-        
+
         # Global features
         x = self.Mixed_7a(x)
         x = self.Mixed_7b(x)
@@ -97,5 +99,5 @@ class CNN_ENCODER(nn.Module):
         x = F.avg_pool2d(x, kernel_size=8)
         x = x.view(x.size(0), -1)
         cnn_code = self.emb_cnn_code(x)
-        
+
         return features, cnn_code
