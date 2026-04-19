@@ -36,9 +36,16 @@ def words_loss(img_features, words_emb, labels, cap_lens, batch_size):
     # Compare each word with its corresponding context vector
     row_sim = cosine_similarity(c, words_emb_t, dim=2)
 
-    # Average similarity across the sequence (handling variable cap_lens if needed)
-    # For now, we take the mean across the fixed 18 words
-    loss = -torch.log(torch.exp(row_sim).mean(dim=1))
+    # Aggregate similarities only across valid (non-pad) tokens.
+    seq_len = words_emb_t.size(1)
+    device = row_sim.device
+    steps = torch.arange(seq_len, device=device).unsqueeze(0)
+    cap_lens = cap_lens.to(device).unsqueeze(1)
+    mask = (steps < cap_lens).float()
+
+    exp_row_sim = torch.exp(row_sim) * mask
+    valid_counts = mask.sum(dim=1).clamp_min(1.0)
+    loss = -torch.log(exp_row_sim.sum(dim=1) / valid_counts + 1e-8)
 
     return loss.mean()
 

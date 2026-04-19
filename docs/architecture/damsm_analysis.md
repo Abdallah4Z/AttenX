@@ -19,5 +19,13 @@ The DAMSM is a pre-trained sub-network used to compute the similarity between ge
 - **Sentence-level Similarity:** Computes the cosine similarity between the global sentence embedding and the global image feature.
 - **Purpose:** Provides a fine-grained reward signal to the generator, ensuring that specific objects (e.g., "red beak") are rendered correctly.
 
-## 3. Implementation Note
-In the AttenX project, the DAMSM weights are kept frozen during GAN training to provide a stable evaluation metric and loss signal.
+## 3. Implementation Notes
+
+- DAMSM weights (text and image encoders) are loaded from pre-trained checkpoints and kept frozen during GAN training for stability.
+- The generator loss is:
+  $$
+  L_G = L_{GAN} + \gamma_{damsm} (L_{Words} + L_{Sent})
+  $$
+  where $\gamma_{damsm}$ is configurable via CLI or environment variable.
+- Word-level similarity is masked by caption length to avoid padding artifacts.
+- All loss components are logged separately for analysis: word-level, sentence-level, combined DAMSM, and GAN losses.
