@@ -44,10 +44,10 @@ class TextDataset(Dataset):
     def load_bbox(self):
         data_dir = self.data_dir
         bbox_path = os.path.join(data_dir, "CUB_200_2011/bounding_boxes.txt")
-        df_bounding_boxes = pd.read_csv(bbox_path, delim_whitespace=True, header=None).astype(int)
+        df_bounding_boxes = pd.read_csv(bbox_path, sep=r"\s+", header=None).astype(int)
 
         filepath = os.path.join(data_dir, "CUB_200_2011/images.txt")
-        df_filenames = pd.read_csv(filepath, delim_whitespace=True, header=None)
+        df_filenames = pd.read_csv(filepath, sep=r"\s+", header=None)
         filenames = df_filenames[1].tolist()
 
         filename_bbox = {img_file[:-4]: [] for img_file in filenames}
