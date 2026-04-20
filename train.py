@@ -9,6 +9,7 @@ from code.model import D_NET256
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
 from scripts.loss_logging import LossLogger
@@ -70,6 +71,72 @@ def load_checkpoint(checkpoint_dir, netG, netD, optimizerG=None, optimizerD=None
     return start_epoch
 
 
+def run_validation(netG, netD, text_encoder, image_encoder, val_loader, device, args):
+    """Run validation and compute average losses."""
+    netG.eval()
+    netD.eval()
+
+    val_D_loss = 0.0
+    val_G_loss = 0.0
+    val_damsm_loss = 0.0
+    n_batches = 0
+    criterion = nn.BCELoss()
+
+    with torch.no_grad():
+        for batch in val_loader:
+            real_imgs, captions, cap_lens, _, _ = batch
+            real_imgs = real_imgs.to(device)
+            captions = captions.to(device)
+            cap_lens = cap_lens.to(device).squeeze(-1)
+            batch_size = real_imgs.size(0)
+
+            # Sort captions by length for LSTM packing
+            cap_lens, sort_idx = torch.sort(cap_lens, descending=True)
+            captions = captions[sort_idx]
+
+            # Text encoding
+            hidden = None
+            words_emb, sent_emb = text_encoder(captions, cap_lens, hidden)
+            sent_emb_detached = sent_emb.detach()
+
+            # Discriminator validation loss
+            real_logits = netD(real_imgs, sent_emb_detached)
+            errD_real = criterion(real_logits, torch.ones_like(real_logits))
+
+            noise = torch.randn(batch_size, 100, 1, 1, device=device)
+            fake_imgs = netG(noise)
+            fake_logits = netD(fake_imgs, sent_emb_detached)
+            errD_fake = criterion(fake_logits, torch.zeros_like(fake_logits))
+            errD_val = errD_real + errD_fake
+
+            # Generator validation loss
+            gan_logits = netD(fake_imgs, sent_emb.detach())
+            g_gan_loss = criterion(gan_logits, torch.ones_like(gan_logits))
+
+            features, cnn_code = image_encoder(fake_imgs)
+            w_loss = words_loss(
+                features, words_emb.transpose(1, 2), None, cap_lens, batch_size
+            )
+            s_loss = sent_loss(cnn_code, sent_emb, None, batch_size)
+            damsm_loss_val = w_loss + s_loss
+
+            errG_val = g_gan_loss + args.gamma_damsm * damsm_loss_val
+
+            val_D_loss += errD_val.item()
+            val_G_loss += errG_val.item()
+            val_damsm_loss += damsm_loss_val.item()
+            n_batches += 1
+
+    netG.train()
+    netD.train()
+
+    avg_D = val_D_loss / n_batches
+    avg_G = val_G_loss / n_batches
+    avg_damsm = val_damsm_loss / n_batches
+
+    return avg_D, avg_G, avg_damsm
+
+
 def train(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -80,21 +147,40 @@ def train(args):
     # Create checkpoint directory
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
-    # 1. Dataset & DataLoader
-    dataset = TextImageDataset(
+    # 1. Datasets & DataLoaders
+    train_dataset = TextImageDataset(
         data_dir=args.data_dir,
         split="train",
         image_size=args.image_size,
     )
-    dataloader = DataLoader(
-        dataset,
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
         pin_memory=True,
         drop_last=True,
     )
-    print(f"Dataset size: {len(dataset)} | Batches per epoch: {len(dataloader)}")
+    print(f"Train dataset size: {len(train_dataset)} | Batches: {len(train_loader)}")
+
+    val_loader = None
+    if args.validate_interval > 0:
+        val_dataset = TextImageDataset(
+            data_dir=args.data_dir,
+            split="test",
+            image_size=args.image_size,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=args.num_workers,
+            pin_memory=True,
+            drop_last=False,
+        )
+        print(
+            f"Validation dataset size: {len(val_dataset)} | Batches: {len(val_loader)}"
+        )
 
     # 2. Models Initialization
     netG = G_NET(ngf=args.ngf).to(device)
@@ -122,22 +208,51 @@ def train(args):
     optimizerG = optim.Adam(netG.parameters(), lr=args.lr_g, betas=(0.5, 0.999))
     optimizerD = optim.Adam(netD.parameters(), lr=args.lr_d, betas=(0.5, 0.999))
 
-    # 4. Optionally resume from checkpoint
+    # 4. LR Schedulers
+    schedulerG = ReduceLROnPlateau(
+        optimizerG,
+        mode="min",
+        factor=args.lr_factor,
+        patience=args.lr_patience,
+        verbose=True,
+    )
+    schedulerD = ReduceLROnPlateau(
+        optimizerD,
+        mode="min",
+        factor=args.lr_factor,
+        patience=args.lr_patience,
+        verbose=True,
+    )
+
+    # 5. Optionally resume from checkpoint
     start_epoch = 0
+    best_val_loss = float("inf")
     if args.resume:
         start_epoch = load_checkpoint(
             args.checkpoint_dir, netG, netD, optimizerG, optimizerD
         )
+        latest_path = os.path.join(args.checkpoint_dir, "checkpoint_latest.pth")
+        if os.path.isfile(latest_path):
+            state = torch.load(latest_path, map_location="cpu")
+            if "schedulerG" in state:
+                schedulerG.load_state_dict(state["schedulerG"])
+            if "schedulerD" in state:
+                schedulerD.load_state_dict(state["schedulerD"])
+            best_val_loss = state.get("best_val_loss", float("inf"))
+            print(f"Resumed best_val_loss: {best_val_loss:.4f}")
 
-    # 5. Training Loop
+    # 6. Early stopping setup
+    early_stop_counter = 0
+
+    # 7. Training Loop
     criterion = nn.BCELoss()
-    global_step = start_epoch * len(dataloader)
+    global_step = start_epoch * len(train_loader)
 
     for epoch in range(start_epoch, args.epochs):
         netG.train()
         netD.train()
 
-        for batch_idx, batch in enumerate(dataloader):
+        for batch_idx, batch in enumerate(train_loader):
             real_imgs, captions, cap_lens, _, _ = batch
             real_imgs = real_imgs.to(device)
             captions = captions.to(device)
@@ -150,12 +265,8 @@ def train(args):
             captions = captions[sort_idx]
 
             # Text encoding
-            hidden = None  # Let LSTM initialize hidden state
+            hidden = None
             words_emb, sent_emb = text_encoder(captions, cap_lens, hidden)
-            # words_emb: (batch, seq_len, nhidden*2)
-            # sent_emb: (batch, nhidden*2)
-
-            # Detach sent_emb for discriminator updates
             sent_emb_detached = sent_emb.detach()
 
             # ------------------------
@@ -164,11 +275,9 @@ def train(args):
             for d_step in range(args.D_steps):
                 optimizerD.zero_grad()
 
-                # Real images
                 real_logits = netD(real_imgs, sent_emb_detached)
                 errD_real = criterion(real_logits, torch.ones_like(real_logits))
 
-                # Fake images
                 noise = torch.randn(batch_size, 100, 1, 1, device=device)
                 fake_imgs = netG(noise)
                 fake_logits = netD(fake_imgs.detach(), sent_emb_detached)
@@ -183,12 +292,10 @@ def train(args):
             # ------------------------
             optimizerG.zero_grad()
 
-            # GAN loss
             fake_imgs = netG(noise)
             gan_logits = netD(fake_imgs, sent_emb.detach())
             g_gan_loss = criterion(gan_logits, torch.ones_like(gan_logits))
 
-            # DAMSM loss on generated images
             features, cnn_code = image_encoder(fake_imgs)
             w_loss = words_loss(
                 features, words_emb.transpose(1, 2), None, cap_lens, batch_size
@@ -215,8 +322,51 @@ def train(args):
                 },
             )
 
-        # End of epoch
         print(f"\nEpoch {epoch + 1}/{args.epochs} complete.")
+
+        # Validation
+        if val_loader and (epoch + 1) % args.validate_interval == 0:
+            print(f"Running validation for epoch {epoch + 1}...")
+            val_D, val_G, val_damsm = run_validation(
+                netG, netD, text_encoder, image_encoder, val_loader, device, args
+            )
+            val_loss = (
+                val_G  # Use generator validation loss for scheduling/early stopping
+            )
+            print(
+                f"Validation — D: {val_D:.4f} | G: {val_G:.4f} | DAMSM: {val_damsm:.4f}"
+            )
+
+            # LR scheduler step
+            schedulerG.step(val_loss)
+            schedulerD.step(val_loss)
+
+            # Early stopping check
+            if val_loss < best_val_loss - args.min_delta:
+                best_val_loss = val_loss
+                early_stop_counter = 0
+                # Save best model
+                save_checkpoint(
+                    args.checkpoint_dir,
+                    epoch + 1,
+                    netG,
+                    netD,
+                    optimizerG,
+                    optimizerD,
+                    best_val_loss=best_val_loss,
+                    schedulerG=schedulerG.state_dict(),
+                    schedulerD=schedulerD.state_dict(),
+                )
+                print(f"  New best validation loss: {best_val_loss:.4f}")
+            else:
+                early_stop_counter += 1
+                print(
+                    f"  No improvement for {early_stop_counter}/"
+                    f"{args.patience_early_stop} epochs"
+                )
+                if early_stop_counter >= args.patience_early_stop:
+                    print(f"Early stopping triggered after epoch {epoch + 1}")
+                    break
 
         # Save checkpoint every N epochs
         if (epoch + 1) % args.checkpoint_interval == 0:
@@ -227,6 +377,9 @@ def train(args):
                 netD,
                 optimizerG,
                 optimizerD,
+                best_val_loss=best_val_loss,
+                schedulerG=schedulerG.state_dict(),
+                schedulerD=schedulerD.state_dict(),
             )
 
         # Always save latest checkpoint
@@ -237,6 +390,9 @@ def train(args):
             netD,
             optimizerG,
             optimizerD,
+            best_val_loss=best_val_loss,
+            schedulerG=schedulerG.state_dict(),
+            schedulerD=schedulerD.state_dict(),
         )
 
     # Save final log
@@ -285,6 +441,37 @@ def parse_args():
     )
     parser.add_argument(
         "--gamma-damsm", type=float, default=1.0, help="DAMSM loss weight"
+    )
+
+    # LR Scheduler args
+    parser.add_argument(
+        "--lr-patience",
+        type=int,
+        default=5,
+        help="Patience for LR scheduler (epochs without improvement)",
+    )
+    parser.add_argument(
+        "--lr-factor", type=float, default=0.5, help="Factor to reduce LR by on plateau"
+    )
+
+    # Validation & Early Stopping args
+    parser.add_argument(
+        "--validate-interval",
+        type=int,
+        default=1,
+        help="Run validation every N epochs (0 to disable)",
+    )
+    parser.add_argument(
+        "--patience-early-stop",
+        type=int,
+        default=10,
+        help="Patience for early stopping (epochs without improvement)",
+    )
+    parser.add_argument(
+        "--min-delta",
+        type=float,
+        default=1e-4,
+        help="Minimum improvement to count as progress",
     )
 
     # Checkpoint/logging args
