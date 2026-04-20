@@ -9,7 +9,7 @@ Enhanced attention-based GAN (AttnGAN-style) for text-to-image synthesis, with s
 - `docs/architecture/` architecture/math notes
 - `docs/specifications/` implementation audits/specs
 - `docs/planning/` project planning and phase breakdown
-- `train.py` single-step training/gradient sanity script
+- `train.py` multi-epoch training pipeline with checkpointing, configurable D-steps, and DAMSM loss
 
 
 ## Current implementation status
@@ -17,9 +17,8 @@ Enhanced attention-based GAN (AttnGAN-style) for text-to-image synthesis, with s
 - `G_NET` implemented with staged upsampling to `256x256` and a `SelfAttention` block
 - `D_NET256` implemented with spectral normalization over convolution layers
 - DAMSM loss fully integrated: supports pre-trained encoder loading, gamma_damsm weighting, and separate word/sentence loss logging
-- Dataset loader scaffold available for CUB-style data in `code/datasets.py`
-
-> Note: `train.py` now supports DAMSM loss with weighted objective and logging, but is still a single-step sanity script (not a full multi-epoch trainer).
+- `TextImageDataset` class implemented for CUB-200-2011 format: loads images with bounding box cropping, captions from pickle files, and applies configurable transforms
+- `train.py` is a full multi-epoch trainer with DataLoader support, checkpointing (periodic + latest for resume), configurable discriminator steps per generator, and full DAMSM loss integration
 
 ## Setup
 
@@ -50,16 +49,44 @@ pytest --cov=code --cov=tests --cov-report=term-missing --cov-report=xml --cov-r
 ## Run examples
 
 ```bash
-# Run a single training step with DAMSM loss (gamma=0.5)
-python3 train.py --gamma-damsm 0.5
+# Full multi-epoch training on CUB dataset
+python3 train.py --epochs 100 --batch-size 4 --data-dir ./data --checkpoint-dir ./checkpoints --checkpoint-interval 10
 
-# Optionally specify pre-trained DAMSM encoder checkpoints
-python3 train.py --gamma-damsm 0.5 --damsm-text-path path/to/text_encoder.pth --damsm-image-path path/to/image_encoder.pth
+# With custom discriminator steps per generator step
+python3 train.py --epochs 100 --D-steps 2 --gamma-damsm 1.0
 
+# Resume from checkpoint
+python3 train.py --epochs 200 --resume --checkpoint-dir ./checkpoints
+
+# With pre-trained DAMSM encoders
+python3 train.py --epochs 100 --damsm-text-path path/to/text_encoder.pth --damsm-image-path path/to/image_encoder.pth
+
+# Run generation/evaluation scripts
 python3 scripts/generate.py
 python3 scripts/quantitative_evaluation.py
 python3 scripts/qualitative_analysis.py
 ```
+
+## Dataset format
+
+The training pipeline expects CUB-200-2011 style data:
+
+```
+data/
+├── CUB_200_2011/
+│   ├── images.txt              # image filename list
+│   ├── bounding_boxes.txt      # x y width height per image
+│   └── images/
+│       └── 001.Class/
+│           └── image_0001.jpg
+├── train/
+│   ├── filenames.pickle        # list of image keys (e.g., "001.Class/sample_0001")
+│   ├── captions.pickle         # list of caption arrays (10 captions per image, each as word indices)
+│   └── class_info.pickle       # class IDs
+└── test/ (same structure)
+```
+
+Captions should be pre-tokenized to word indices based on a vocabulary of size `vocab_size` (default 10000). The `TextImageDataset` class handles loading and batching.
 
 ## Documentation index
 
@@ -91,3 +118,5 @@ python3 scripts/qualitative_analysis.py
 
 - GitHub issue helper scripts require `PyGitHub` and a personal access token.
 - Generated artifacts/logs are written under `results/`, `output/`, and `logs/`.
+- Checkpoints are saved as `checkpoint_epoch_{:04d}.pth` plus `checkpoint_latest.pth` for resuming.
+- For GPU training, ensure CUDA toolkit is installed; the code auto-detects CUDA availability.
