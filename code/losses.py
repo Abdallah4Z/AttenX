@@ -3,7 +3,12 @@ import torch.nn.functional as F
 
 
 def cosine_similarity(x1, x2, dim=1, eps=1e-8):
-    return F.cosine_similarity(x1, x2, dim=dim, eps=eps)
+    # Manual implementation to avoid NaN gradients from zero-norm vectors
+    x1_norm = torch.norm(x1, dim=dim, keepdim=True).clamp_min(eps)
+    x2_norm = torch.norm(x2, dim=dim, keepdim=True).clamp_min(eps)
+    x1_unit = x1 / x1_norm
+    x2_unit = x2 / x2_norm
+    return (x1_unit * x2_unit).sum(dim=dim)
 
 
 def words_loss(img_features, words_emb, labels, cap_lens, batch_size):
@@ -32,6 +37,8 @@ def words_loss(img_features, words_emb, labels, cap_lens, batch_size):
     cap_lens = cap_lens.to(device).unsqueeze(1)
     mask = (steps < cap_lens).float()
 
+    # Zero out padding positions to avoid NaN from zero-norm vectors
+    row_sim = torch.where(mask.bool(), row_sim, torch.zeros_like(row_sim))
     exp_row_sim = torch.exp(row_sim) * mask
     valid_counts = mask.sum(dim=1).clamp_min(1.0)
     loss = -torch.log(exp_row_sim.sum(dim=1) / valid_counts + 1e-8)

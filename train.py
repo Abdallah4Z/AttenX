@@ -14,8 +14,18 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from torch.cuda.amp import autocast, GradScaler
+from torch.nn.utils.rnn import pad_sequence
 
 from scripts.loss_logging import LossLogger
+
+
+def collate_text_image(batch):
+    """Collate function for variable-length captions."""
+    images, captions, cap_lens, cls_ids, keys = zip(*batch)
+    images = torch.stack(images, 0)
+    cap_lens = torch.stack(cap_lens, 0).squeeze(-1)
+    captions = pad_sequence(captions, batch_first=True, padding_value=0)
+    return images, captions, cap_lens, cls_ids, keys
 
 
 def set_seed(seed: int):
@@ -120,7 +130,7 @@ def run_validation(netG, netsD, text_encoder, image_encoder, val_loader, device,
             real_imgs, captions, cap_lens, _, _ = batch
             real_imgs = real_imgs.to(device)
             captions = captions.to(device)
-            cap_lens = cap_lens.to(device).squeeze(-1)
+            cap_lens = cap_lens.squeeze(-1)
             batch_size = real_imgs.size(0)
 
             cap_lens_sorted, sort_idx = torch.sort(cap_lens, descending=True)
@@ -206,6 +216,7 @@ def train(args):
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True,
         num_workers=args.num_workers, pin_memory=True, drop_last=True,
+        collate_fn=collate_text_image,
     )
     print(f"Train dataset size: {len(train_dataset)} | Batches: {len(train_loader)}")
 
@@ -215,6 +226,7 @@ def train(args):
         val_loader = DataLoader(
             val_dataset, batch_size=args.batch_size, shuffle=False,
             num_workers=args.num_workers, pin_memory=True, drop_last=False,
+            collate_fn=collate_text_image,
         )
         print(f"Validation dataset size: {len(val_dataset)} | Batches: {len(val_loader)}")
 
@@ -246,9 +258,9 @@ def train(args):
         optim.Adam(netD2.parameters(), lr=args.lr_d, betas=(0.5, 0.999)),
     ]
 
-    schedulerG = ReduceLROnPlateau(optimizerG, mode="min", factor=args.lr_factor, patience=args.lr_patience, verbose=True)
+    schedulerG = ReduceLROnPlateau(optimizerG, mode="min", factor=args.lr_factor, patience=args.lr_patience)
     schedulersD = [
-        ReduceLROnPlateau(opt, mode="min", factor=args.lr_factor, patience=args.lr_patience, verbose=True)
+        ReduceLROnPlateau(opt, mode="min", factor=args.lr_factor, patience=args.lr_patience)
         for opt in optimizersD
     ]
 
@@ -275,14 +287,14 @@ def train(args):
             real_imgs, captions, cap_lens, _, _ = batch
             real_imgs = real_imgs.to(device)
             captions = captions.to(device)
-            cap_lens = cap_lens.to(device).squeeze(-1)
+            cap_lens = cap_lens.squeeze(-1)
             batch_size = real_imgs.size(0)
 
-            cap_lens, sort_idx = torch.sort(cap_lens, descending=True)
+            cap_lens_sorted, sort_idx = torch.sort(cap_lens, descending=True)
             captions = captions[sort_idx]
 
             hidden = None
-            words_emb, sent_emb = text_encoder(captions, cap_lens, hidden)
+            words_emb, sent_emb = text_encoder(captions, cap_lens_sorted, hidden)
             sent_emb_detached = sent_emb.detach()
             word_emb = words_emb.detach()
 
@@ -348,7 +360,7 @@ def train(args):
                     kl = KL_loss(mu, logvar)
 
                     features, cnn_code = image_encoder(img_256)
-                    w_loss = words_loss(features, words_emb.transpose(1, 2), None, cap_lens, batch_size)
+                    w_loss = words_loss(features, words_emb.transpose(1, 2), None, cap_lens_sorted, batch_size)
                     s_loss = sent_loss(cnn_code, sent_emb, None, batch_size)
                     damsm_loss = w_loss + s_loss
 
@@ -372,7 +384,7 @@ def train(args):
                 kl = KL_loss(mu, logvar)
 
                 features, cnn_code = image_encoder(img_256)
-                w_loss = words_loss(features, words_emb.transpose(1, 2), None, cap_lens, batch_size)
+                w_loss = words_loss(features, words_emb.transpose(1, 2), None, cap_lens_sorted, batch_size)
                 s_loss = sent_loss(cnn_code, sent_emb, None, batch_size)
                 damsm_loss = w_loss + s_loss
 
