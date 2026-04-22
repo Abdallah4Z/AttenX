@@ -3,7 +3,7 @@ import types
 import torch
 import torch.nn as nn
 
-from code import config
+from code import constants as config
 from code.encoder import CNN_ENCODER, RNN_ENCODER
 from code.losses import KL_loss, cosine_similarity, sent_loss, words_loss
 

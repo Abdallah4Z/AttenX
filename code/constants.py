@@ -1,0 +1,15 @@
+"""Configuration constants for AttenX model."""
+
+DROPOUT = 0.5
+LEAKY_RELU_SLOPE = 0.2
+LATENT_DIM = 100
+IMAGE_SIZE = 256
+
+NDF = 64
+NEF = 512
+GF_DIM = 128
+
+VOCAB_SIZE = 12000
+WORD_DIM = 300
+EMBEDDING_NUM = 10
+SEQ_LEN = 18
