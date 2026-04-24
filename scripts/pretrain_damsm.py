@@ -10,15 +10,31 @@ import argparse
 import os
 import random
 import numpy as np
+import sys
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
+
+# Ensure local repository root is searched before stdlib module names.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 from code.datasets import TextImageDataset
 from code.encoder import RNN_ENCODER, CNN_ENCODER
 from code.losses import words_loss, sent_loss
+
+
+def collate_text_image(batch):
+    """Collate function to pad variable-length captions within a batch."""
+    images, captions, cap_lens, cls_ids, keys = zip(*batch)
+    images = torch.stack(images, 0)
+    cap_lens = torch.stack(cap_lens, 0).squeeze(-1)
+    captions = pad_sequence(captions, batch_first=True, padding_value=0)
+    return images, captions, cap_lens, cls_ids, keys
 
 
 def set_seed(seed):
@@ -27,8 +43,19 @@ def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True
+
+
+def resolve_device(device_arg):
+    if device_arg == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device_arg.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested but is not available in this Python environment. "
+            "Install a CUDA-enabled PyTorch build or use --device cpu."
+        )
+    return torch.device(device_arg)
 
 
 def save_encoders(text_encoder, image_encoder, output_dir, epoch):
@@ -48,12 +75,14 @@ def save_encoders(text_encoder, image_encoder, output_dir, epoch):
 
 def pretrain(args):
     set_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = resolve_device(args.device)
     print(f"Device: {device}")
+    pin_memory = device.type == "cuda"
 
     dataset = TextImageDataset(data_dir=args.data_dir, split="train", image_size=256)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
-                        num_workers=args.num_workers, pin_memory=True, drop_last=True)
+                        num_workers=args.num_workers, pin_memory=pin_memory, drop_last=True,
+                        collate_fn=collate_text_image)
     print(f"Dataset size: {len(dataset)} | Batches: {len(loader)}")
 
     text_encoder = RNN_ENCODER(n_words=args.vocab_size, nhidden=args.nhidden, nembed=args.nembed).to(device)
@@ -146,6 +175,7 @@ def main():
     parser.add_argument("--vocab-size", type=int, default=10000)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--output-dir", type=str, default="./checkpoints/damsm")
     parser.add_argument("--save-interval", type=int, default=10)
     parser.add_argument("--resume", action="store_true")

@@ -35,16 +35,36 @@ def set_seed(seed: int):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True
 
 
-def _load_pretrained_if_available(model, checkpoint_path, name):
+def _resolve_device(device_arg: str):
+    if device_arg == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if device_arg.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError(
+            "CUDA was requested but is not available in this Python environment. "
+            "Install a CUDA-enabled PyTorch build or use --device cpu."
+        )
+
+    return torch.device(device_arg)
+
+
+def _optimizer_to_device(optimizer, device):
+    for state in optimizer.state.values():
+        for key, value in state.items():
+            if isinstance(value, torch.Tensor):
+                state[key] = value.to(device, non_blocking=True)
+
+
+def _load_pretrained_if_available(model, checkpoint_path, name, device):
     if not checkpoint_path:
         return False
     if not os.path.isfile(checkpoint_path):
         raise FileNotFoundError(f"{name} checkpoint not found: {checkpoint_path}")
-    state = torch.load(checkpoint_path, map_location="cpu")
+    state = torch.load(checkpoint_path, map_location=device)
     if isinstance(state, dict) and "state_dict" in state:
         state = state["state_dict"]
     model.load_state_dict(state, strict=False)
@@ -73,22 +93,24 @@ def save_checkpoint(checkpoint_dir, epoch, netG, netsD, optimizerG, optimizersD,
     torch.save(state, latest_path)
 
 
-def load_checkpoint(checkpoint_dir, netG, netsD, optimizerG=None, optimizersD=None):
+def load_checkpoint(checkpoint_dir, netG, netsD, device, optimizerG=None, optimizersD=None):
     latest_path = os.path.join(checkpoint_dir, "checkpoint_latest.pth")
     if not os.path.isfile(latest_path):
         print(f"No checkpoint found at {latest_path}")
         return 0
-    state = torch.load(latest_path, map_location="cpu")
+    state = torch.load(latest_path, map_location=device)
     netG.load_state_dict(state["netG"])
     netsD[0].load_state_dict(state["netD0"])
     netsD[1].load_state_dict(state["netD1"])
     netsD[2].load_state_dict(state["netD2"])
     if optimizerG is not None:
         optimizerG.load_state_dict(state["optimizerG"])
+        _optimizer_to_device(optimizerG, device)
     if optimizersD is not None:
         for i, optD in enumerate(optimizersD):
             if f"optimizerD{i}" in state:
                 optD.load_state_dict(state[f"optimizerD{i}"])
+                _optimizer_to_device(optD, device)
     start_epoch = state.get("epoch", 0)
     print(f"Resumed from checkpoint epoch {start_epoch}")
     return start_epoch
@@ -196,11 +218,11 @@ def run_validation(netG, netsD, text_encoder, image_encoder, val_loader, device,
 
 def train(args):
     set_seed(args.seed)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = _resolve_device(args.device)
     print(f"Using device: {device}")
 
     scaler = None
-    if args.use_amp and torch.cuda.is_available():
+    if args.use_amp and device.type == "cuda":
         try:
             from torch.cuda.amp import autocast, GradScaler
             scaler = GradScaler()
@@ -211,11 +233,12 @@ def train(args):
 
     logger = LossLogger(args.log_dir)
     os.makedirs(args.checkpoint_dir, exist_ok=True)
+    pin_memory = device.type == "cuda"
 
     train_dataset = TextImageDataset(data_dir=args.data_dir, split="train", image_size=args.image_size)
     train_loader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.num_workers, pin_memory=True, drop_last=True,
+        num_workers=args.num_workers, pin_memory=pin_memory, drop_last=True,
         collate_fn=collate_text_image,
     )
     print(f"Train dataset size: {len(train_dataset)} | Batches: {len(train_loader)}")
@@ -225,7 +248,7 @@ def train(args):
         val_dataset = TextImageDataset(data_dir=args.data_dir, split="test", image_size=args.image_size)
         val_loader = DataLoader(
             val_dataset, batch_size=args.batch_size, shuffle=False,
-            num_workers=args.num_workers, pin_memory=True, drop_last=False,
+            num_workers=args.num_workers, pin_memory=pin_memory, drop_last=False,
             collate_fn=collate_text_image,
         )
         print(f"Validation dataset size: {len(val_dataset)} | Batches: {len(val_loader)}")
@@ -242,8 +265,8 @@ def train(args):
     text_encoder = RNN_ENCODER(n_words=args.vocab_size, nhidden=args.nhidden, nembed=args.nembed).to(device)
     image_encoder = CNN_ENCODER(nef=args.nef).to(device)
 
-    _load_pretrained_if_available(text_encoder, args.damsm_text_path, "DAMSM text encoder")
-    _load_pretrained_if_available(image_encoder, args.damsm_image_path, "DAMSM image encoder")
+    _load_pretrained_if_available(text_encoder, args.damsm_text_path, "DAMSM text encoder", device)
+    _load_pretrained_if_available(image_encoder, args.damsm_image_path, "DAMSM image encoder", device)
     text_encoder.eval()
     image_encoder.eval()
     for p in text_encoder.parameters():
@@ -267,10 +290,10 @@ def train(args):
     start_epoch = 0
     best_val_loss = float("inf")
     if args.resume:
-        start_epoch = load_checkpoint(args.checkpoint_dir, netG, netsD, optimizerG, optimizersD)
+        start_epoch = load_checkpoint(args.checkpoint_dir, netG, netsD, device, optimizerG, optimizersD)
         latest_path = os.path.join(args.checkpoint_dir, "checkpoint_latest.pth")
         if os.path.isfile(latest_path):
-            state = torch.load(latest_path, map_location="cpu")
+            state = torch.load(latest_path, map_location=device)
             best_val_loss = state.get("best_val_loss", float("inf"))
             print(f"Resumed best_val_loss: {best_val_loss:.4f}")
 
@@ -470,6 +493,7 @@ def parse_args():
     parser.add_argument("--lambda-kl", type=float, default=2.0)
     parser.add_argument("--clip-grad", type=float, default=None)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--use-amp", action="store_true")
     parser.add_argument("--lr-patience", type=int, default=5)
     parser.add_argument("--lr-factor", type=float, default=0.5)
