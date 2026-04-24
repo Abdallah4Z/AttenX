@@ -1,0 +1,11 @@
+Text to Image Synthesis (Assignment 4)
+Choose one of the listed text to image synthesis, analyse the model and state its draw back.
+Design your own model to enhance the drawbacks and implement it.
+Test your model to create different images.
+Write a scientific paper about your model supported with results
+GAN-INT-CLS
+StackGAN
+AttnGAN
+DSE-GAN
+DR-GAN
+Hybrid CVAE + GAN Text-to-Image Model
