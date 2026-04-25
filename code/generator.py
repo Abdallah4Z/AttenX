@@ -1,10 +1,20 @@
 import torch
 import torch.nn as nn
-from code.modules import ConditioningAugmentation, GenStage, SelfAttention
+from code.modules import ConditioningAugmentation, GenStage
 
 
 class G_NET(nn.Module):
-    def __init__(self, ngf=64, nz=100, nef=512, nhidden=256, word_dim=512):
+    def __init__(
+        self,
+        ngf=64,
+        nz=100,
+        nef=512,
+        nhidden=256,
+        word_dim=512,
+        use_self_attention=True,
+        attention_mode="single",
+        mhsa_heads=4,
+    ):
         super().__init__()
         self.nz = nz
         self.ngf = ngf
@@ -20,7 +30,15 @@ class G_NET(nn.Module):
         self.stage1 = GenStage(ngf * 16, ngf * 8, word_dim, ngf)
         self.stage2 = GenStage(ngf * 8, ngf * 4, word_dim, ngf)
         self.stage3 = GenStage(ngf * 4, ngf * 2, word_dim, ngf)
-        self.stage4 = GenStage(ngf * 2, ngf, word_dim, ngf, use_self_attn=True)
+        self.stage4 = GenStage(
+            ngf * 2,
+            ngf,
+            word_dim,
+            ngf,
+            use_self_attn=use_self_attention,
+            self_attn_mode=attention_mode,
+            mhsa_heads=mhsa_heads,
+        )
 
         self.to_rgb_64 = nn.Conv2d(ngf, 3, 3, 1, 1, bias=False)
 

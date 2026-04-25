@@ -29,3 +29,10 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+data/*
+
+# Model checkpoints
+checkpoints/
+*.pth
+*.pkl

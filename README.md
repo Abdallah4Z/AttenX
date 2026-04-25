@@ -31,16 +31,16 @@ Enhanced attention-based GAN (AttnGAN-style) for text-to-image synthesis, with s
 
 Use Python 3.10+.
 
+No virtual environment is required:
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+pip3 install --user -r requirements.txt
 ```
 
-Or with PEP 621 metadata:
+If your system enforces externally managed packages:
 
 ```bash
-pip install .
+pip3 install --break-system-packages -r requirements.txt
 ```
 
 
@@ -58,6 +58,9 @@ pytest --cov=code --cov=tests --cov-report=term-missing --cov-report=xml --cov-r
 ```bash
 # Full multi-epoch training on CUB dataset
 python3 train.py --epochs 100 --batch-size 4 --data-dir ./data --checkpoint-dir ./checkpoints --checkpoint-interval 10
+
+# 2-GPU run without CUDA env vars (A6000 example: GPUs 6 and 7)
+python3 train.py --config configs/train.yaml --gpu-ids 6,7 --use-amp
 
 # With learning rate scheduling (ReduceLROnPlateau) and early stopping
 python3 train.py --epochs 200 --lr-patience 5 --lr-factor 0.5 --validate-interval 1 --patience-early-stop 10
@@ -159,6 +162,8 @@ Captions should be pre-tokenized to word indices based on a vocabulary of size `
 
 ## Documentation index
 
+- `docs/GETTING_STARTED.md`
+- `docs/MULTI_GPU_TRAINING.md`
 - `docs/planning/PROJECT_PLAN.md`
 - `docs/planning/TEAM_ASSIGNMENTS.md`
 - `docs/planning/ISSUE_RESTRUCTURING_PLAN.md`

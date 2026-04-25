@@ -72,7 +72,7 @@ def generate_images(prompts, checkpoint_path, damsm_text_path=None,
 
             caption, cap_len = tokenize_prompt(prompt, vocab_size)
             caption = caption.unsqueeze(0).to(device)
-            cap_len = cap_len.to(device)
+            cap_len = cap_len.cpu()
 
             hidden = None
             words_emb, sent_emb = text_encoder(caption, cap_len, hidden)

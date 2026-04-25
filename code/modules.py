@@ -23,6 +23,31 @@ class SelfAttention(nn.Module):
         return self.gamma * out + x
 
 
+class MultiHeadSelfAttention2D(nn.Module):
+    def __init__(self, in_dim, num_heads=4, dropout=0.0):
+        super().__init__()
+        if in_dim % num_heads != 0:
+            raise ValueError(
+                f"in_dim ({in_dim}) must be divisible by num_heads ({num_heads}) for MHSA"
+            )
+        self.norm = nn.LayerNorm(in_dim)
+        self.attn = nn.MultiheadAttention(
+            embed_dim=in_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        bsz, ch, h, w = x.size()
+        tokens = x.view(bsz, ch, h * w).permute(0, 2, 1)
+        tokens_norm = self.norm(tokens)
+        attn_out, _ = self.attn(tokens_norm, tokens_norm, tokens_norm, need_weights=False)
+        out = tokens + self.gamma * attn_out
+        return out.permute(0, 2, 1).contiguous().view(bsz, ch, h, w)
+
+
 class ConditioningAugmentation(nn.Module):
     def __init__(self, emb_dim, nz):
         super().__init__()
@@ -58,7 +83,16 @@ class CrossAttention(nn.Module):
 
 
 class GenStage(nn.Module):
-    def __init__(self, in_ch, out_ch, w_dim, attn_dim, use_self_attn=False):
+    def __init__(
+        self,
+        in_ch,
+        out_ch,
+        w_dim,
+        attn_dim,
+        use_self_attn=False,
+        self_attn_mode="single",
+        mhsa_heads=4,
+    ):
         super().__init__()
         self.upsample = nn.Sequential(
             nn.Upsample(scale_factor=2, mode="nearest"),
@@ -72,7 +106,15 @@ class GenStage(nn.Module):
             nn.BatchNorm2d(out_ch),
             nn.ReLU(True),
         )
-        self.self_attn = SelfAttention(out_ch) if use_self_attn else None
+        if use_self_attn:
+            if self_attn_mode == "single":
+                self.self_attn = SelfAttention(out_ch)
+            elif self_attn_mode == "multihead":
+                self.self_attn = MultiHeadSelfAttention2D(out_ch, num_heads=mhsa_heads)
+            else:
+                raise ValueError(f"Unsupported self_attn_mode: {self_attn_mode}")
+        else:
+            self.self_attn = None
 
     def forward(self, h, w):
         h = self.upsample(h)

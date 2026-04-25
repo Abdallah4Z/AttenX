@@ -63,5 +63,4 @@ def sent_loss(cnn_code, sent_emb, labels, batch_size):
 
 
 def KL_loss(mu, logvar):
-    KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
-    return torch.mean(KLD_element).mul_(-0.5)
+    return 0.5 * torch.mean(mu.pow(2) + logvar.exp() - 1 - logvar)

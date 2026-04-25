@@ -9,6 +9,7 @@ Usage:
 import argparse
 import os
 import random
+import sys
 import numpy as np
 
 import torch
@@ -16,9 +17,32 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
+# Ensure repository root is importable when this script is run directly.
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+# Torch may import Python's stdlib `code` module first; remove it so the
+# repository `code/` package can be imported below.
+if "code" in sys.modules and not hasattr(sys.modules["code"], "__path__"):
+    del sys.modules["code"]
+
 from code.datasets import TextImageDataset
 from code.encoder import RNN_ENCODER, CNN_ENCODER
 from code.losses import words_loss, sent_loss
+
+
+def _text_image_collate(batch):
+    images, captions, cap_lens, class_ids, keys = zip(*batch)
+    images = torch.stack(images, dim=0)
+    cap_lens = torch.stack(cap_lens, dim=0).view(-1)
+    max_len = int(cap_lens.max().item()) if len(cap_lens) > 0 else 1
+    padded_captions = torch.zeros(len(captions), max_len, dtype=torch.long)
+    for i, cap in enumerate(captions):
+        cur_len = min(cap.size(0), max_len)
+        padded_captions[i, :cur_len] = cap[:cur_len]
+    class_ids = torch.as_tensor([int(x) for x in class_ids], dtype=torch.long)
+    return images, padded_captions, cap_lens, class_ids, list(keys)
 
 
 def set_seed(seed):
@@ -53,7 +77,8 @@ def pretrain(args):
 
     dataset = TextImageDataset(data_dir=args.data_dir, split="train", image_size=256)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True,
-                        num_workers=args.num_workers, pin_memory=True, drop_last=True)
+                        num_workers=args.num_workers, pin_memory=True, drop_last=True,
+                        collate_fn=_text_image_collate)
     print(f"Dataset size: {len(dataset)} | Batches: {len(loader)}")
 
     text_encoder = RNN_ENCODER(n_words=args.vocab_size, nhidden=args.nhidden, nembed=args.nembed).to(device)
@@ -102,7 +127,7 @@ def pretrain(args):
             optimizer.zero_grad()
 
             hidden = None
-            words_emb, sent_emb = text_encoder(captions, cap_lens, hidden)
+            words_emb, sent_emb = text_encoder(captions, cap_lens.cpu(), hidden)
 
             features, cnn_code = image_encoder(imgs)
 

@@ -33,6 +33,7 @@ class TrainingConfig:
     clip_grad: Optional[float] = None
     seed: int = 42
     use_amp: bool = False
+    gpu_ids: str = ""
     
     # Learning Rate Scheduling
     lr_patience: int = 5
@@ -107,6 +108,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--clip-grad", type=float, default=None, help="Gradient clipping value")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--use-amp", action="store_true", help="Use automatic mixed precision")
+    parser.add_argument("--gpu-ids", type=str, default="", help="Comma-separated CUDA GPU IDs to use, e.g. '0,1'")
     
     # LR Scheduler args
     parser.add_argument("--lr-patience", type=int, default=5, help="Patience for LR scheduler")

@@ -91,6 +91,19 @@ def extract_features(dataloader, inception, device, num_images):
     return all_probs
 
 
+def _text_image_collate(batch):
+    images, captions, cap_lens, class_ids, keys = zip(*batch)
+    images = torch.stack(images, dim=0)
+    cap_lens = torch.stack(cap_lens, dim=0).view(-1)
+    max_len = int(cap_lens.max().item()) if len(cap_lens) > 0 else 1
+    padded_captions = torch.zeros(len(captions), max_len, dtype=torch.long)
+    for i, cap in enumerate(captions):
+        cur_len = min(cap.size(0), max_len)
+        padded_captions[i, :cur_len] = cap[:cur_len]
+    class_ids = torch.as_tensor([int(x) for x in class_ids], dtype=torch.long)
+    return images, padded_captions, cap_lens, class_ids, list(keys)
+
+
 def generate_images(netG, text_encoder, dataloader, device, num_images, nz):
     netG.eval()
     inception = InceptionFeatureExtractor().to(device)
@@ -110,13 +123,13 @@ def generate_images(netG, text_encoder, dataloader, device, num_images, nz):
 
         imgs = imgs[:batch_size].to(device)
         captions = captions[:batch_size].to(device)
-        cap_lens = cap_lens[:batch_size].to(device).squeeze(-1)
+        cap_lens = cap_lens[:batch_size].squeeze(-1)
 
         cap_lens, sort_idx = torch.sort(cap_lens, descending=True)
         captions = captions[sort_idx]
 
         hidden = None
-        words_emb, sent_emb = text_encoder(captions, cap_lens, hidden)
+        words_emb, sent_emb = text_encoder(captions, cap_lens.cpu(), hidden)
         word_emb = words_emb
 
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
@@ -125,7 +138,7 @@ def generate_images(netG, text_encoder, dataloader, device, num_images, nz):
         probs = inception(img_256)
         if isinstance(probs, tuple):
             probs = probs[0]
-        probs = F.softmax(probs, dim=1).cpu().numpy()
+        probs = F.softmax(probs, dim=1).detach().cpu().numpy()
         all_fake_probs.append(probs)
         count += batch_size
 
@@ -186,7 +199,8 @@ def main():
 
     dataset = TextImageDataset(data_dir=args.data_dir, split="test", image_size=256)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
-                       num_workers=args.num_workers, pin_memory=True)
+                       num_workers=args.num_workers, pin_memory=True,
+                       collate_fn=_text_image_collate)
 
     print(f"Computing metrics over {args.num_images} images...")
     fake_probs = generate_images(netG, text_encoder, loader, device, args.num_images, args.nz)

@@ -40,19 +40,22 @@ class TextImageDataset(Dataset):
         # CUB paths
         self.cub_dir = os.path.join(data_dir, "CUB_200_2011")
         self.split_dir = os.path.join(data_dir, split)
+        birds_split_dir = os.path.join(data_dir, "birds", split)
+        if not os.path.isdir(self.split_dir) and os.path.isdir(birds_split_dir):
+            self.split_dir = birds_split_dir
+
+        # Number of captions per image (typically 10 for CUB)
+        self.embeddings_num = 10
 
         # Load filenames, captions, class ids
         self.filenames = self._load_pickle(self.split_dir, "filenames.pickle")
-        self.captions = self._load_pickle(self.split_dir, "captions.pickle")
+        self.captions = self._load_split_captions()
         self.class_id = self._load_pickle(
             self.split_dir, "class_info.pickle", encoding="latin1"
         )
 
         # Load bounding boxes
         self.bbox = self._load_bbox()
-
-        # Number of captions per image (typically 10 for CUB)
-        self.embeddings_num = 10
 
     def _load_pickle(self, data_dir, filename, encoding=None):
         filepath = os.path.join(data_dir, filename)
@@ -64,6 +67,39 @@ class TextImageDataset(Dataset):
             return data
         except Exception as e:
             raise RuntimeError(f"Failed to load pickle {filepath}: {e}")
+
+    def _load_split_captions(self):
+        split_caption_path = os.path.join(self.split_dir, "captions.pickle")
+        if os.path.isfile(split_caption_path):
+            return self._load_pickle(self.split_dir, "captions.pickle")
+
+        birds_captions_path = os.path.join(self.data_dir, "birds", "captions.pickle")
+        if not os.path.isfile(birds_captions_path):
+            raise FileNotFoundError(
+                f"Required captions file not found: {split_caption_path} (fallback also missing: {birds_captions_path})"
+            )
+
+        try:
+            with open(birds_captions_path, "rb") as f:
+                train_caps, test_caps, _, _ = pickle.load(f, encoding="latin1")
+        except Exception as e:
+            raise RuntimeError(f"Failed to load fallback captions from {birds_captions_path}: {e}")
+
+        flat_captions = train_caps if self.split == "train" else test_caps
+        num_images = len(self.filenames)
+        if num_images == 0:
+            raise RuntimeError("No filenames found while building captions for split")
+        if len(flat_captions) % num_images != 0:
+            raise RuntimeError(
+                f"Caption count mismatch for split '{self.split}': {len(flat_captions)} captions for {num_images} images"
+            )
+
+        self.embeddings_num = len(flat_captions) // num_images
+        grouped = [
+            flat_captions[i * self.embeddings_num:(i + 1) * self.embeddings_num]
+            for i in range(num_images)
+        ]
+        return grouped
 
     def _load_bbox(self):
         """Load bounding boxes from CUB metadata."""
