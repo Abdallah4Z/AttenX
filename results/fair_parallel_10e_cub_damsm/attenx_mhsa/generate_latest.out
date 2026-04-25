@@ -1,0 +1,16 @@
+/home/skyvision/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py:123: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.5 and num_layers=1
+  warnings.warn(
+Loaded generator from results/fair_parallel_10e_cub_damsm/attenx_mhsa/checkpoints/checkpoint_latest.pth
+Loaded text encoder from ./checkpoints/damsm_quick/damsm_latest.pth
+  [1/5] Generating: 'a bright yellow bird with a black head and wings'
+       -> Saved (90.6 KB) to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/attenx_output_001.png
+  [2/5] Generating: 'a small red bird with a short beak and long tail'
+       -> Saved (100.4 KB) to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/attenx_output_002.png
+  [3/5] Generating: 'a large blue bird sitting on a tree branch'
+       -> Saved (77.1 KB) to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/attenx_output_003.png
+  [4/5] Generating: 'a white bird with black spots on its wings'
+       -> Saved (103.5 KB) to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/attenx_output_004.png
+  [5/5] Generating: 'a green bird with a red chest and yellow eyes'
+       -> Saved (83.2 KB) to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/attenx_output_005.png
+
+Done. 5 images saved to results/fair_parallel_10e_cub_damsm/attenx_mhsa/generated_latest/

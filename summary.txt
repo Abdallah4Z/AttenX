@@ -1,0 +1,5 @@
+| Variant | Ckpt Epoch | Latest Step | D_Loss | G_Loss | L_KL | Gamma_DAMSM | Latest Epoch Marker | Recent Checkpoints |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 50 | 18400 | 0.0014 | 127.4116 | 0.0225 | 0.0000 | Epoch 50/50 complete | checkpoint_latest.pth<br>checkpoint_epoch_0050.pth |
+| attenx_sa | 50 | 18400 | 0.0482 | 27.6312 | 0.0228 | 0.0000 | Epoch 50/50 complete | checkpoint_latest.pth<br>checkpoint_epoch_0050.pth |
+| attenx_mhsa | 50 | 18400 | 0.2820 | 9.3569 | 0.0208 | 0.0000 | Epoch 50/50 complete | checkpoint_latest.pth<br>checkpoint_epoch_0050.pth |

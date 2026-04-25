@@ -1,0 +1,18 @@
+/home/skyvision/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py:123: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.5 and num_layers=1
+  warnings.warn(
+Loaded generator from results/fair_parallel_50e_cub/attenx_mhsa/checkpoints/checkpoint_latest.pth
+WARNING: No pretrained text encoder provided. Using random text embeddings.
+         Images will NOT be semantically meaningful without pretrained DAMSM encoders.
+         Run 'python scripts/pretrain_damsm.py' first to train the text encoder.
+  [1/5] Generating: 'a bright yellow bird with a black head and wings'
+       -> Saved (80.1 KB) to results/fair_parallel_50e_cub/attenx_mhsa/generated/attenx_output_001.png
+  [2/5] Generating: 'a small red bird with a short beak and long tail'
+       -> Saved (93.4 KB) to results/fair_parallel_50e_cub/attenx_mhsa/generated/attenx_output_002.png
+  [3/5] Generating: 'a large blue bird sitting on a tree branch'
+       -> Saved (87.1 KB) to results/fair_parallel_50e_cub/attenx_mhsa/generated/attenx_output_003.png
+  [4/5] Generating: 'a white bird with black spots on its wings'
+       -> Saved (83.9 KB) to results/fair_parallel_50e_cub/attenx_mhsa/generated/attenx_output_004.png
+  [5/5] Generating: 'a green bird with a red chest and yellow eyes'
+       -> Saved (75.6 KB) to results/fair_parallel_50e_cub/attenx_mhsa/generated/attenx_output_005.png
+
+Done. 5 images saved to results/fair_parallel_50e_cub/attenx_mhsa/generated/

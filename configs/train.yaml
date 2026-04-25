@@ -24,6 +24,7 @@ lambda_kl: 2.0  # DAMSM loss weight
 clip_grad: null  # Gradient clipping value (optional)
 seed: 42  # Random seed
 use_amp: false  # Use automatic mixed precision
+gpu_ids: "6,7"  # Comma-separated CUDA GPU IDs, e.g. "0,1"
 
 # Learning Rate Scheduling
 lr_patience: 5
