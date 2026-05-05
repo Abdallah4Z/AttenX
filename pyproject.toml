@@ -1,45 +1,19 @@
 [project]
 name = "attenx"
-version = "0.1.0"
-description = "Text-to-Image Synthesis using Attention-based GAN"
+version = "0.2.0"
+description = "AttenX: Enhanced Attention-Based GAN for Fine-Grained Text-to-Image Synthesis"
 requires-python = ">=3.10"
 dependencies = [
     "torch>=2.0.0",
     "torchvision>=0.15.0",
     "numpy>=1.24.0",
     "pandas>=1.5.0",
-    "matplotlib>=3.7.0",
     "pillow>=10.0.0",
-    "tqdm>=4.65.0",
-    "opencv-python>=4.8.0",
-    "h5py>=3.8.0",
-    "nltk>=3.8.0",
-    "PyGitHub>=1.59",
+    "pyyaml>=6.0",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ['py310']
-
-[tool.flake8]
-max-line-length = 100
-exclude = [
-    "__pycache__",
-    ".git",
-    "venv",
-    ".venv",
-    "output",
-    "results",
-    "logs",
-]
-ignore = ["E203", "W503"]
-
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-addopts = "-q"
+[project.scripts]
+attenx-train = "attenx.scripts.train:main"
+attenx-pretrain-damsm = "attenx.scripts.pretrain_damsm:main"
+attenx-evaluate = "attenx.scripts.evaluate:main"
+attenx-generate = "attenx.scripts.generate:main"

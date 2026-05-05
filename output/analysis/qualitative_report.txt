@@ -1,6 +1,0 @@
-Qualitative Analysis Report
-==========================
-Observations:
-- Improved global coherence observed in 8/10 samples.
-- The number of bird limbs and beaks matches the text description more accurately.
-- Spectral Normalization has visibly reduced mode collapse compared to baseline.
