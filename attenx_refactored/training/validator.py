@@ -1,3 +1,11 @@
+"""
+Validation loop for AttenX training.
+
+Runs the generator and discriminators over the validation set
+without gradient updates, computing mean D loss, G loss,
+DAMSM loss, and KL loss.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -6,6 +14,21 @@ from attenx_refactored.losses.damsm import words_loss, sent_loss, KL_loss
 
 @torch.no_grad()
 def validate(netG, netsD, text_encoder, image_encoder, val_loader, device, config):
+    """
+    Run one validation epoch without gradient updates.
+
+    Args:
+        netG: Generator model.
+        netsD: List of discriminator models.
+        text_encoder: Frozen text encoder (RNN_ENCODER).
+        image_encoder: Frozen image encoder (CNN_ENCODER).
+        val_loader: DataLoader for the validation set.
+        device: torch device.
+        config: AttenXConfig with loss weights and model params.
+
+    Returns:
+        Tuple of (avg_d_loss, avg_g_loss, avg_damsm_loss, avg_kl_loss).
+    """
     netG.eval()
     for netD in netsD:
         netD.eval()
@@ -26,17 +49,21 @@ def validate(netG, netsD, text_encoder, image_encoder, val_loader, device, confi
         cap_lens = cap_lens.squeeze(-1)
         batch_size = real_imgs.size(0)
 
+        # Sort captions by length for packed LSTM processing
         cap_lens_sorted, sort_idx = torch.sort(cap_lens, descending=True)
         captions_sorted = captions[sort_idx]
 
+        # Encode text to word-level and sentence-level features
         words_emb, sent_emb = text_encoder(captions_sorted, cap_lens_sorted, None)
         sent_emb_d = sent_emb.detach()
         word_emb_d = words_emb.detach()
 
+        # Create multi-resolution real image scales
         real_64 = nn.functional.interpolate(real_imgs, size=(64, 64), mode="bilinear", align_corners=False)
         real_128 = nn.functional.interpolate(real_imgs, size=(128, 128), mode="bilinear", align_corners=False)
         real_scales = [real_64, real_128, real_imgs]
 
+        # Generate fake images and compute discriminator losses
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
         img_64, img_128, img_256, mu, logvar = netG(noise, sent_emb_d, word_emb_d)
         fake_scales = [img_64, img_128, img_256]
@@ -51,6 +78,7 @@ def validate(netG, netsD, text_encoder, image_encoder, val_loader, device, confi
 
             err_d = err_d + err_d_real + err_d_fake
 
+        # Compute generator loss
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
         img_64, img_128, img_256, mu, logvar = netG(noise, sent_emb, word_emb_d)
         fake_scales = [img_64, img_128, img_256]

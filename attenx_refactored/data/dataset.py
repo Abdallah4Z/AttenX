@@ -1,3 +1,12 @@
+"""
+CUB-200-2011 text-image paired dataset.
+
+Loads bird images cropped by bounding box and resized to the
+target resolution. Each image is associated with 10 captions
+(stored as pre-tokenized word indices), one of which is
+randomly sampled per __getitem__ call.
+"""
+
 import os
 import pickle
 
@@ -10,6 +19,19 @@ from torchvision import transforms
 
 
 class TextImageDataset(Dataset):
+    """
+    CUB-200-2011 dataset for text-to-image generation.
+
+    Loads images cropped by bounding box and resized to `image_size`.
+    Each image has 10 captions; one is randomly chosen per access.
+
+    Args:
+        data_dir: Root directory containing CUB_200_2011 and split dirs.
+        split: 'train' or 'test'.
+        image_size: Target resolution for images.
+        transform: Optional custom transform (default: resize+normalize).
+    """
+
     def __init__(self, data_dir, split="train", image_size=256, transform=None):
         super().__init__()
         self.data_dir = data_dir
@@ -35,6 +57,20 @@ class TextImageDataset(Dataset):
         self.embeddings_num = 10
 
     def _load_pickle(self, data_dir, filename, encoding=None):
+        """
+        Load a pickle file from the given directory.
+
+        Args:
+            data_dir: Directory containing the pickle file.
+            filename: Name of the pickle file.
+            encoding: Optional encoding (e.g., 'latin1' for legacy files).
+
+        Returns:
+            Unpickled object.
+
+        Raises:
+            FileNotFoundError: If the pickle file does not exist.
+        """
         path = os.path.join(data_dir, filename)
         if not os.path.isfile(path):
             raise FileNotFoundError(f"Missing pickle: {path}")
@@ -42,6 +78,12 @@ class TextImageDataset(Dataset):
             return pickle.load(f, encoding=encoding) if encoding else pickle.load(f)
 
     def _load_bbox(self):
+        """
+        Load bounding box annotations from CUB_200_2011.
+
+        Returns:
+            Dict mapping image filename (without .jpg) to [x, y, w, h].
+        """
         bbox_path = os.path.join(self.cub_dir, "bounding_boxes.txt")
         img_path = os.path.join(self.cub_dir, "images.txt")
 
@@ -55,6 +97,18 @@ class TextImageDataset(Dataset):
         return mapping
 
     def __getitem__(self, index):
+        """
+        Load an image-caption pair by index.
+
+        Crops the image using its bounding box (with 0.75 padding),
+        applies transforms, and randomly selects one of 10 captions.
+
+        Args:
+            index: Dataset index.
+
+        Returns:
+            Tuple of (image, caption, cap_len, class_id, filename_key).
+        """
         if index >= len(self.filenames):
             raise IndexError(f"Index {index} out of bounds")
 
@@ -87,4 +141,7 @@ class TextImageDataset(Dataset):
         return img, caption, cap_len, cls_id, key
 
     def __len__(self):
+        """
+        Return the total number of samples in the dataset.
+        """
         return len(self.filenames)

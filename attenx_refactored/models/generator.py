@@ -1,3 +1,13 @@
+"""
+Cascaded generator network (G_NET) for AttenX.
+
+Progressively upsamples from 4x4 to 256x256 resolution. Each
+stage applies nearest-neighbor upsampling, convolution, batch
+norm, ReLU, cross-attention with word embeddings, and a fusion
+conv. Self-attention (single or multi-head) is injected at the
+64x64 resolution stage.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -16,6 +26,21 @@ _ATTN_MODULES = {
 
 
 class GenStage(nn.Module):
+    """
+    Single upsampling stage with cross-attention fusion.
+
+    Each stage: nearest-neighbor 2x up -> conv3x3 -> BN -> ReLU
+    -> cross-attention with word embeddings -> fuse (conv3x3).
+    Optionally followed by self-attention.
+
+    Args:
+        in_ch: Input channel count.
+        out_ch: Output channel count after upsampling.
+        w_dim: Word embedding dimension.
+        attn_dim: Cross-attention projection dimension.
+        use_self_attn: Whether to include self-attention at this stage.
+    """
+
     def __init__(self, in_ch, out_ch, w_dim, attn_dim, use_self_attn=False):
         super().__init__()
         self.upsample = nn.Sequential(
@@ -35,6 +60,16 @@ class GenStage(nn.Module):
             self.self_attn = SelfAttention(out_ch)
 
     def forward(self, h, w):
+        """
+        Process features through one generation stage.
+
+        Args:
+            h: Input feature map (B, in_ch, H, W).
+            w: Word embeddings for cross-attention (B, seq_len, w_dim).
+
+        Returns:
+            Output feature map (B, out_ch, H*2, W*2).
+        """
         h = self.upsample(h)
         ctx = self.cross_attn(h, w)
         h = self.fuse(torch.cat([h, ctx], dim=1))
@@ -44,6 +79,23 @@ class GenStage(nn.Module):
 
 
 class G_NET(nn.Module):
+    """
+    Cascaded generator network (AttenX).
+
+    Starts from a noise vector z and a conditioning code c, then
+    progressively upsamples through 7 stages to produce 256x256
+    images. Intermediate outputs at 64x64 and 128x128 are also
+    returned for multi-scale discriminator supervision.
+
+    Args:
+        ngf: Base feature channel count for the generator.
+        nz: Noise vector dimension.
+        nef: Conditioning augmentation embedding dimension.
+        word_dim: Word embedding dimension from text encoder.
+        attention_mode: Type of self-attention ('none', 'single', 'multi').
+        num_heads: Number of heads for multi-head attention.
+    """
+
     def __init__(self, ngf=64, nz=100, nef=512, word_dim=512,
                  attention_mode="none", num_heads=4):
         super().__init__()
@@ -91,6 +143,22 @@ class G_NET(nn.Module):
         )
 
     def forward(self, z, sent_emb, word_emb):
+        """
+        Generate images from noise and text embeddings.
+
+        Args:
+            z: Noise tensor (B, nz, 1, 1).
+            sent_emb: Global sentence embedding (B, nef).
+            word_emb: Word-level features (B, seq_len, word_dim).
+
+        Returns:
+            Tuple of (img_64, img_128, img_256, mu, logvar) where:
+                img_64: 64x64 intermediate output.
+                img_128: 128x128 intermediate output.
+                img_256: Final 256x256 output.
+                mu: Mean from conditioning augmentation.
+                logvar: Log-variance from conditioning augmentation.
+        """
         c, mu, logvar = self.ca(sent_emb)
         c = c.unsqueeze(-1).unsqueeze(-1)
         h = self.stage0(torch.cat([z, c], dim=1))

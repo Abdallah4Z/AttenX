@@ -1,3 +1,13 @@
+"""
+Text and image encoders for the DAMSM (Deep Attentional Multimodal
+Similarity Model).
+
+- RNN_ENCODER: Bidirectional LSTM that encodes word indices into
+  word-level features and a global sentence vector.
+- CNN_ENCODER: Pretrained Inception-v3 (frozen) that extracts local
+  feature maps and global image codes.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +15,20 @@ from torchvision import models
 
 
 class RNN_ENCODER(nn.Module):
+    """
+    Bidirectional LSTM text encoder (DAMSM).
+
+    Embeds word indices, applies dropout, and runs through a
+    bidirectional LSTM. Returns word-level features and a global
+    sentence embedding (concatenated final hidden states).
+
+    Args:
+        n_words: Vocabulary size.
+        nhidden: LSTM hidden dimension per direction.
+        nembed: Word embedding dimension.
+        nlayers: Number of LSTM layers.
+    """
+
     def __init__(self, n_words, nhidden=256, nembed=256, nlayers=1):
         super().__init__()
         self.n_words = n_words
@@ -18,6 +42,19 @@ class RNN_ENCODER(nn.Module):
                            bidirectional=True)
 
     def forward(self, captions, cap_lens, hidden=None):
+        """
+        Encode caption word indices into features.
+
+        Args:
+            captions: Padded word index tensor (B, seq_len).
+            cap_lens: Length of each caption (B,).
+            hidden: Optional initial hidden state for the LSTM.
+
+        Returns:
+            Tuple of (word_embeddings, sent_emb) where:
+                word_embeddings: Word-level features (B, seq_len, nhidden*2).
+                sent_emb: Global sentence embedding (B, nhidden*2).
+        """
         embeddings = self.word_embeddings(captions)
         embeddings = self.dropout(embeddings)
 
@@ -34,6 +71,17 @@ class RNN_ENCODER(nn.Module):
 
 
 class CNN_ENCODER(nn.Module):
+    """
+    Inception-v3 based image encoder (DAMSM).
+
+    Uses a pretrained Inception-v3 backbone (frozen) to extract
+    local feature maps (768-dim) and global image codes (2048-dim).
+    Projects both to the DAMSM embedding dimension (nef).
+
+    Args:
+        nef: Target embedding dimension for features and codes.
+    """
+
     def __init__(self, nef=512):
         super().__init__()
         self.nef = nef
@@ -44,6 +92,12 @@ class CNN_ENCODER(nn.Module):
         self._define_module(model)
 
     def _define_module(self, model):
+        """
+        Extract Inception-v3 submodules and add projection layers.
+
+        Args:
+            model: Pretrained Inception-v3 model.
+        """
         self.Conv2d_1a_3x3 = model.Conv2d_1a_3x3
         self.Conv2d_2a_3x3 = model.Conv2d_2a_3x3
         self.Conv2d_2b_3x3 = model.Conv2d_2b_3x3
@@ -65,6 +119,20 @@ class CNN_ENCODER(nn.Module):
         self.emb_cnn_code = nn.Linear(2048, self.nef)
 
     def forward(self, x):
+        """
+        Extract image features and global code.
+
+        Resizes input to 299x299 if needed, runs through Inception-v3,
+        and returns local feature maps and a global image code.
+
+        Args:
+            x: Input image tensor (B, 3, H, W).
+
+        Returns:
+            Tuple of (features, cnn_code) where:
+                features: Spatial feature maps (B, nef, H', W').
+                cnn_code: Global image code (B, nef).
+        """
         if x.shape[-1] != 299:
             x = F.interpolate(x, size=(299, 299), mode="bilinear", align_corners=False)
 

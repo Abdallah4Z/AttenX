@@ -1,8 +1,30 @@
+"""
+Checkpoint save/load utilities for AttenX training.
+
+Supports saving and restoring generator, discriminators,
+optimizers, and schedulers. Handles dynamic numbers of
+discriminators (not hardcoded to three).
+"""
+
 import torch
 
 
 def save_checkpoint(path, epoch, netG, netsD, optimizerG, optimizersD,
                     schedulerG=None, schedulersD=None, best_val_loss=None):
+    """
+    Save a full training checkpoint to disk.
+
+    Args:
+        path: Destination file path.
+        epoch: Current epoch number.
+        netG: Generator model.
+        netsD: List of discriminator models.
+        optimizerG: Generator optimizer.
+        optimizersD: List of discriminator optimizers.
+        schedulerG: Optional generator LR scheduler.
+        schedulersD: Optional list of discriminator LR schedulers.
+        best_val_loss: Best validation loss so far.
+    """
     state = {
         "epoch": epoch,
         "netG": netG.state_dict(),
@@ -22,6 +44,20 @@ def save_checkpoint(path, epoch, netG, netsD, optimizerG, optimizersD,
 
 def load_checkpoint(path, netG, netsD, optimizerG=None, optimizersD=None,
                     device="cpu"):
+    """
+    Load a training checkpoint and restore model/optimizer states.
+
+    Args:
+        path: Checkpoint file path.
+        netG: Generator model instance.
+        netsD: List of discriminator model instances.
+        optimizerG: Optional generator optimizer to restore.
+        optimizersD: Optional list of discriminator optimizers to restore.
+        device: Device to map checkpoint tensors to.
+
+    Returns:
+        Tuple of (epoch, best_val_loss).
+    """
     state = torch.load(path, map_location=device)
     netG.load_state_dict(state["netG"])
     for i, netD in enumerate(netsD):
@@ -41,6 +77,13 @@ def load_checkpoint(path, netG, netsD, optimizerG=None, optimizersD=None,
 
 
 def _move_optimizer(optimizer, device):
+    """
+    Move all optimizer state tensors to the specified device.
+
+    Args:
+        optimizer: PyTorch optimizer whose state tensors need moving.
+        device: Target torch device.
+    """
     for state in optimizer.state.values():
         for k, v in state.items():
             if isinstance(v, torch.Tensor):

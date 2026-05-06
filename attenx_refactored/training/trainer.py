@@ -1,3 +1,12 @@
+"""
+Main training loop for AttenX.
+
+Orchestrates the adversarial training of the generator and
+three multi-scale discriminators. Supports automatic mixed
+precision (AMP), learning rate scheduling, validation with
+early stopping, and checkpoint save/load.
+"""
+
 import contextlib
 import os
 import random
@@ -22,32 +31,54 @@ from attenx_refactored.utils.logging import LossLogger
 
 
 class _AMPHelper:
+    """
+    Helper to unify AMP and non-AMP training paths.
+
+    Eliminates duplicate code branches for scaled vs. unscaled
+    backward/step/update operations by providing a consistent
+    interface regardless of whether AMP is enabled.
+    """
+
     def __init__(self, scaler):
+        """
+        Args:
+            scaler: GradScaler instance or None.
+        """
         self.scaler = scaler
 
     def autocast(self):
+        """Return autocast context if AMP is enabled, else nullcontext."""
         if self.scaler is not None:
             return autocast()
         return contextlib.nullcontext()
 
     def backward(self, loss):
+        """Scale loss and backward if AMP, else standard backward."""
         if self.scaler is not None:
             self.scaler.scale(loss).backward()
         else:
             loss.backward()
 
     def step(self, optimizer):
+        """Unscale and step if AMP, else standard step."""
         if self.scaler is not None:
             self.scaler.step(optimizer)
         else:
             optimizer.step()
 
     def update(self):
+        """Update AMP scaler if enabled."""
         if self.scaler is not None:
             self.scaler.update()
 
 
 def _set_seed(seed):
+    """
+    Set random seed for reproducibility across all RNGs.
+
+    Args:
+        seed: Integer seed value.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -58,12 +89,33 @@ def _set_seed(seed):
 
 
 def _resolve_device(device_str):
+    """
+    Parse device string into a torch.device.
+
+    Args:
+        device_str: 'auto', 'cuda', 'cpu', or device string.
+
+    Returns:
+        torch.device instance.
+    """
     if device_str == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(device_str)
 
 
 def _load_pretrained_encoder(model, path, name, device):
+    """
+    Load pretrained encoder weights from a checkpoint file.
+
+    Args:
+        model: Encoder model to load weights into.
+        path: Path to checkpoint file (or None to skip).
+        name: Human-readable name for logging.
+        device: Device to map tensors to.
+
+    Returns:
+        True if weights were loaded, False otherwise.
+    """
     if not path or not os.path.isfile(path):
         return False
     state = torch.load(path, map_location=device)
@@ -75,23 +127,74 @@ def _load_pretrained_encoder(model, path, name, device):
 
 
 def _sort_captions(captions, cap_lens):
+    """
+    Sort captions by length in descending order.
+
+    Required for pack_padded_sequence in the LSTM text encoder.
+
+    Args:
+        captions: Padded caption tensor (B, seq_len).
+        cap_lens: Caption lengths (B,).
+
+    Returns:
+        Tuple of (sorted_captions, sorted_lengths).
+    """
     cap_lens_sorted, sort_idx = torch.sort(cap_lens, descending=True)
     captions_sorted = captions[sort_idx]
     return captions_sorted, cap_lens_sorted
 
 
 def _make_real_scales(images):
+    """
+    Create multi-resolution versions of real images.
+
+    Args:
+        images: Full-resolution images (B, 3, 256, 256).
+
+    Returns:
+        List of [64x64, 128x128, 256x256] image tensors.
+    """
     real_64 = nn.functional.interpolate(images, size=(64, 64), mode="bilinear", align_corners=False)
     real_128 = nn.functional.interpolate(images, size=(128, 128), mode="bilinear", align_corners=False)
     return [real_64, real_128, images]
 
 
 def _make_fake_scales(netG, noise, sent_emb, word_emb):
+    """
+    Generate fake images at multiple resolutions.
+
+    Args:
+        netG: Generator model.
+        noise: Noise tensor (B, nz, 1, 1).
+        sent_emb: Sentence embedding.
+        word_emb: Word-level features.
+
+    Returns:
+        List of [64x64, 128x128, 256x256] fake image tensors.
+    """
     f64, f128, f256, _, _ = netG(noise, sent_emb, word_emb)
     return [f64, f128, f256]
 
 
 def _train_d_step(netsD, optimizersD, real_scales, fake_scales, sent_emb, criterion, amp):
+    """
+    Perform one discriminator training step across all scales.
+
+    Each discriminator is updated to classify real images as real
+    and fake images as fake using binary cross-entropy.
+
+    Args:
+        netsD: List of discriminator models.
+        optimizersD: List of corresponding optimizers.
+        real_scales: List of real image scales.
+        fake_scales: List of fake image scales.
+        sent_emb: Sentence embedding for conditioning.
+        criterion: BCELoss instance.
+        amp: _AMPHelper instance.
+
+    Returns:
+        Total discriminator loss (summed across scales).
+    """
     err_d_total = torch.tensor(0.0, device=sent_emb.device)
     for netD, optD, real_s, fake_s in zip(netsD, optimizersD, real_scales, fake_scales):
         optD.zero_grad()
@@ -109,20 +212,49 @@ def _train_d_step(netsD, optimizersD, real_scales, fake_scales, sent_emb, criter
 
 
 def _train_g_step(netG, netsD, optimizerG, noise, sent_emb, word_emb, cap_lens, image_encoder, criterion, config, amp):
+    """
+    Perform one generator training step.
+
+    Generates images, computes adversarial loss against all
+    discriminators, DAMSM loss (word + sentence level), and
+    KL divergence for conditioning augmentation.
+
+    Args:
+        netG: Generator model.
+        netsD: List of discriminator models.
+        optimizerG: Generator optimizer.
+        noise: Noise tensor (B, nz, 1, 1).
+        sent_emb: Sentence embedding.
+        word_emb: Word-level features.
+        cap_lens: Caption lengths for DAMSM masking.
+        image_encoder: Frozen image encoder.
+        criterion: BCELoss instance.
+        config: AttenXConfig with loss weights.
+        amp: _AMPHelper instance.
+
+    Returns:
+        Tuple of (err_g, g_gan, w_loss, s_loss, damsm_loss, kl_loss).
+    """
     with amp.autocast():
         f64, f128, f256, mu, logvar = netG(noise, sent_emb, word_emb)
         fake_scales = [f64, f128, f256]
 
+        # Adversarial loss: fool discriminators
         g_gan = torch.tensor(0.0, device=sent_emb.device)
         for netD, fs in zip(netsD, fake_scales):
             logits = netD(fs, sent_emb)
             g_gan = g_gan + criterion(logits, torch.ones_like(logits))
 
+        # KL divergence for conditioning augmentation
         kl_loss = KL_loss(mu, logvar)
+
+        # DAMSM losses: word-level and sentence-level
         features, cnn_code = image_encoder(f256)
         w_loss = words_loss(features, word_emb.transpose(1, 2), None, cap_lens, config.batch_size)
         s_loss = sent_loss(cnn_code, sent_emb, None, config.batch_size)
         damsm_loss = w_loss + s_loss
+
+        # Combined generator loss
         err_g = g_gan + config.gamma_damsm * damsm_loss + config.lambda_kl * kl_loss
 
     amp.backward(err_g)
@@ -133,6 +265,17 @@ def _train_g_step(netG, netsD, optimizerG, noise, sent_emb, word_emb, cap_lens, 
 
 
 def train(config):
+    """
+    Main training entry point.
+
+    Sets up datasets, models, optimizers, schedulers, and runs
+    the adversarial training loop with optional validation and
+    early stopping.
+
+    Args:
+        config: AttenXConfig instance with all hyperparameters.
+    """
+    # --- Setup ---
     _set_seed(config.seed)
     device = _resolve_device(config.device)
     print(f"Using device: {device}")
@@ -144,6 +287,7 @@ def train(config):
     os.makedirs(config.checkpoint_dir, exist_ok=True)
     pin = device.type == "cuda"
 
+    # --- Data ---
     train_dataset = TextImageDataset(data_dir=config.data_dir, split="train", image_size=config.image_size)
     train_loader = DataLoader(
         train_dataset, batch_size=config.batch_size, shuffle=True,
@@ -162,6 +306,7 @@ def train(config):
         )
         print(f"Val: {len(val_dataset)} images, {len(val_loader)} batches")
 
+    # --- Model definition ---
     word_dim = config.nhidden * 2
     nz = 100
 
@@ -179,9 +324,11 @@ def train(config):
     text_encoder = RNN_ENCODER(n_words=config.vocab_size, nhidden=config.nhidden, nembed=config.nembed).to(device)
     image_encoder = CNN_ENCODER(nef=config.nef).to(device)
 
+    # Load pretrained encoder weights (if available)
     _load_pretrained_encoder(text_encoder, config.damsm_text_path, "text encoder", device)
     _load_pretrained_encoder(image_encoder, config.damsm_image_path, "image encoder", device)
 
+    # Freeze encoders (they are pretrained and kept fixed)
     text_encoder.eval()
     image_encoder.eval()
     for p in text_encoder.parameters():
@@ -189,12 +336,14 @@ def train(config):
     for p in image_encoder.parameters():
         p.requires_grad = False
 
+    # --- Optimizers and schedulers ---
     optimizerG = optim.Adam(netG.parameters(), lr=config.lr_g, betas=(0.5, 0.999))
     optimizersD = [optim.Adam(netD.parameters(), lr=config.lr_d, betas=(0.5, 0.999)) for netD in netsD]
 
     schedulerG = ReduceLROnPlateau(optimizerG, mode="min", factor=config.lr_factor, patience=config.lr_patience)
     schedulersD = [ReduceLROnPlateau(opt, mode="min", factor=config.lr_factor, patience=config.lr_patience) for opt in optimizersD]
 
+    # --- Resume from checkpoint ---
     start_epoch = 0
     best_val_loss = float("inf")
 
@@ -208,6 +357,7 @@ def train(config):
     criterion = nn.BCELoss()
     global_step = start_epoch * len(train_loader)
 
+    # --- Training loop ---
     for epoch in range(start_epoch, config.epochs):
         netG.train()
         for netD in netsD:
@@ -218,25 +368,33 @@ def train(config):
             real_imgs = real_imgs.to(device)
             captions = captions.to(device)
 
+            # Sort captions by length for packed LSTM
             captions, cap_lens_sorted = _sort_captions(captions, cap_lens)
+
+            # Encode text
             words_emb, sent_emb = text_encoder(captions, cap_lens_sorted, None)
             sent_emb_d = sent_emb.detach()
             word_emb_d = words_emb.detach()
 
+            # Multi-resolution real images
             real_scales = _make_real_scales(real_imgs)
 
+            # --- Discriminator updates ---
             for _ in range(config.D_steps):
                 noise = torch.randn(config.batch_size, nz, 1, 1, device=device)
                 with torch.no_grad():
                     fake_scales = _make_fake_scales(netG, noise, sent_emb_d, word_emb_d)
                 _train_d_step(netsD, optimizersD, real_scales, fake_scales, sent_emb_d, criterion, amp)
 
+            # --- Generator update ---
             optimizerG.zero_grad()
             noise = torch.randn(config.batch_size, nz, 1, 1, device=device)
             err_g, g_gan, w_loss, s_loss, damsm_loss, kl_loss = _train_g_step(
-                netG, netsD, optimizerG, noise, sent_emb, word_emb_d, cap_lens_sorted, image_encoder, criterion, config, amp,
+                netG, netsD, optimizerG, noise, sent_emb, word_emb_d, cap_lens_sorted,
+                image_encoder, criterion, config, amp,
             )
 
+            # Logging
             global_step += 1
             logger.log(global_step, {
                 "G_Loss": err_g.item(),
@@ -249,8 +407,11 @@ def train(config):
 
         print(f"Epoch {epoch + 1}/{config.epochs} complete.")
 
+        # --- Validation ---
         if val_loader and (epoch + 1) % config.validate_interval == 0:
-            val_d, val_g, val_damsm, val_kl = validate(netG, netsD, text_encoder, image_encoder, val_loader, device, config)
+            val_d, val_g, val_damsm, val_kl = validate(
+                netG, netsD, text_encoder, image_encoder, val_loader, device, config,
+            )
             val_loss = val_g
             print(f"Val - D: {val_d:.4f}  G: {val_g:.4f}  DAMSM: {val_damsm:.4f}  KL: {val_kl:.4f}")
 
@@ -258,11 +419,13 @@ def train(config):
             for sD in schedulersD:
                 sD.step(val_loss)
 
+            # Early stopping check
             if val_loss < best_val_loss - config.min_delta:
                 best_val_loss = val_loss
                 early_stop_counter = 0
                 ckpt = os.path.join(config.checkpoint_dir, "checkpoint_best.pth")
-                save_checkpoint(ckpt, epoch + 1, netG, netsD, optimizerG, optimizersD, schedulerG, schedulersD, best_val_loss)
+                save_checkpoint(ckpt, epoch + 1, netG, netsD, optimizerG, optimizersD,
+                                schedulerG, schedulersD, best_val_loss)
                 print(f"  New best val loss: {best_val_loss:.4f}")
             else:
                 early_stop_counter += 1
@@ -271,8 +434,10 @@ def train(config):
                     print(f"Early stopping at epoch {epoch + 1}")
                     break
 
+        # --- Save latest checkpoint ---
         latest_ckpt = os.path.join(config.checkpoint_dir, "checkpoint_latest.pth")
-        save_checkpoint(latest_ckpt, epoch + 1, netG, netsD, optimizerG, optimizersD, schedulerG, schedulersD, best_val_loss)
+        save_checkpoint(latest_ckpt, epoch + 1, netG, netsD, optimizerG, optimizersD,
+                        schedulerG, schedulersD, best_val_loss)
 
     logger.save()
     print("Training complete.")
