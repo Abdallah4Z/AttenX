@@ -1,0 +1,19 @@
+[project]
+name = "attenx"
+version = "0.2.0"
+description = "AttenX: Enhanced Attention-Based GAN for Fine-Grained Text-to-Image Synthesis"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "numpy>=1.24.0",
+    "pandas>=1.5.0",
+    "pillow>=10.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+attenx-train = "attenx_refactored.scripts.train:main"
+attenx-pretrain-damsm = "attenx_refactored.scripts.pretrain_damsm:main"
+attenx-evaluate = "attenx_refactored.scripts.evaluate:main"
+attenx-generate = "attenx_refactored.scripts.generate:main"
